@@ -1,0 +1,23 @@
+{% extends 'audionomy_app/base.html' %}
+{% block title %}Audionomy - Home{% endblock %}
+
+{% block content %}
+<h2>Existing Datasets</h2>
+<ul class="list-group">
+  {% for d in datasets %}
+    <li class="list-group-item">
+      <a href="{% url 'manage_dataset' d.id %}">{{ d.name }}</a>
+    </li>
+  {% endfor %}
+</ul>
+
+<hr>
+<h3>Create a New Dataset</h3>
+<form method="POST" class="mt-3">
+  {% csrf_token %}
+  <div class="input-group">
+    <input type="text" name="dataset_name" class="form-control" placeholder="Dataset Name" required>
+    <button type="submit" class="btn btn-primary">Create</button>
+  </div>
+</form>
+{% endblock %}

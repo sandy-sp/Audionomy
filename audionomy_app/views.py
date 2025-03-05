@@ -124,25 +124,26 @@ def add_entry(request, dataset_id):
     return render(request, 'audionomy_app/add_entry.html', context)
 
 
+import csv
+from django.http import HttpResponse
+
 def export_dataset(request, dataset_id):
     """
-    Example placeholder for exporting dataset data (e.g., CSV, ZIP with audio, etc.).
-
-    Currently returns a basic HTTP response. Replace or expand with real export logic.
-
-    Methods:
-    - GET: In a real scenario, you'd gather the AudioEntry data, possibly
-           create a CSV or ZIP, and return it as an attachment.
-
-    Returns:
-        A simple HttpResponse placeholder stating "Export not implemented."
+    Export dataset entries as a CSV file.
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
+    response = HttpResponse(content_type="text/csv")
+    response['Content-Disposition'] = f'attachment; filename="{dataset.name}.csv"'
 
-    # In a real scenario, generate CSV/ZIP:
-    #   1) gather dataset.entries
-    #   2) create in-memory CSV or zip
-    #   3) return as a FileResponse (or HttpResponse w/ content-type)
-    # For now, a placeholder:
-    message = f"Export for dataset '{dataset.name}' is not implemented."
-    return HttpResponse(message, content_type='text/plain')
+    writer = csv.writer(response)
+    writer.writerow(["Title", "Style", "Duration", "YouTube Link"])
+
+    for entry in dataset.entries.all():
+        writer.writerow([
+            entry.title,
+            entry.style_prompt or "N/A",
+            entry.audio1_duration or "N/A",
+            entry.youtube_link or "N/A"
+        ])
+
+    return response

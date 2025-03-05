@@ -1,25 +1,35 @@
 {% extends 'audionomy_app/base.html' %}
+{% block title %}Manage {{ dataset.name }} - Audionomy{% endblock %}
 
 {% block content %}
-  <h2>Manage Dataset: {{ dataset.name }}</h2>
+  <h2 class="mt-3">{{ dataset.name }}</h2>
 
-  <table class="table">
-    <thead>
+  <!-- Add Entry & Export Buttons -->
+  <div class="d-flex justify-content-between my-3">
+    <a href="{% url 'add_entry' dataset.id %}" class="btn btn-success">+ Add Entry</a>
+    <a href="{% url 'export_dataset' dataset.id %}" class="btn btn-outline-primary">⬇ Export</a>
+  </div>
+
+  <!-- Entries Table -->
+  <table class="table table-bordered table-hover">
+    <thead class="table-dark">
       <tr>
         <th>Title</th>
         <th>Style</th>
-        <th>Actions</th>
+        <th>Duration</th>
       </tr>
     </thead>
     <tbody>
       {% for entry in entries %}
-      <tr>
-        <td>{{ entry.title }}</td>
-        <td>{{ entry.style_prompt }}</td>
-        <td>
-          <a href="{% url 'add_entry' dataset.id %}" class="btn btn-primary">Add Entry</a>
-        </td>
-      </tr>
+        <tr>
+          <td>{{ entry.title }}</td>
+          <td>{{ entry.style_prompt }}</td>
+          <td>{{ entry.audio1_duration|default:"N/A" }}s</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="3" class="text-center text-muted">No entries available.</td>
+        </tr>
       {% endfor %}
     </tbody>
   </table>

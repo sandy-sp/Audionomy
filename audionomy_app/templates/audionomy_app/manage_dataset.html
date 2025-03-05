@@ -1,0 +1,26 @@
+{% extends 'audionomy_app/base.html' %}
+
+{% block content %}
+  <h2>Manage Dataset: {{ dataset.name }}</h2>
+
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Style</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for entry in entries %}
+      <tr>
+        <td>{{ entry.title }}</td>
+        <td>{{ entry.style_prompt }}</td>
+        <td>
+          <a href="{% url 'add_entry' dataset.id %}" class="btn btn-primary">Add Entry</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

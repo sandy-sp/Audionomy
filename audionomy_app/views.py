@@ -2,42 +2,39 @@
 Views for the Audionomy Django project.
 
 Handles:
-- Displaying the home page and managing datasets
-- Adding, editing, and deleting audio entries
-- Exporting dataset data as CSV
+- Displaying the home page and managing datasets.
+- Adding, editing, and deleting audio entries.
+- Exporting dataset data as CSV, JSON, Parquet, and a ZIP archive of audio files.
 
 Models:
-- Dataset: A collection of audio entries
-- AudioEntry: Individual entries with metadata and audio files
+- Dataset: A collection of audio entries.
+- AudioEntry: Individual entries with metadata and audio files.
 """
 
-from django.shortcuts import (
-    render, redirect, get_object_or_404
-)
+import io
+import csv
+import zipfile
+
+from django.shortcuts import render, redirect, get_object_or_404
 from django.http import HttpResponse
 from django.urls import reverse
+from django.core import serializers
+import pandas as pd
+
 from .models import Dataset, AudioEntry
 from .forms import AudioEntryForm
-import csv
 
 
 def home(request):
     """
     Display the home page with a list of datasets and allow creating a new one.
-
-    Methods:
-    - GET: Show the list of datasets.
-    - POST: Create a new dataset with a given name.
-
-    Returns:
-        Renders home.html with {'datasets': <QuerySet of all Datasets>}
     """
     datasets = Dataset.objects.all().order_by('name')
 
     if request.method == 'POST':
         dataset_name = request.POST.get('dataset_name', '').strip()
         if dataset_name:
-            dataset, created = Dataset.objects.get_or_create(name=dataset_name)
+            Dataset.objects.get_or_create(name=dataset_name)
         return redirect('home')
 
     context = {'datasets': datasets}
@@ -47,21 +44,16 @@ def home(request):
 def manage_dataset(request, dataset_id):
     """
     View and manage a specific dataset.
-
-    Methods:
-    - GET: Show dataset details, list of entries, and actions (Add Entry, Export, Delete).
-
-    Returns:
-        Renders manage_dataset.html with {'dataset': dataset, 'entries': dataset.entries.all()}.
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
     entries = dataset.entries.all().order_by('-created_at')
-    datasets = Dataset.objects.all().order_by('name')  # Sidebar fix
+    # Fetch all datasets for the sidebar.
+    all_datasets = Dataset.objects.all().order_by('name')
 
     context = {
         'dataset': dataset,
         'entries': entries,
-        'datasets': datasets,  # Sidebar datasets
+        'datasets': all_datasets,
     }
     return render(request, 'audionomy_app/manage_dataset.html', context)
 
@@ -69,16 +61,9 @@ def manage_dataset(request, dataset_id):
 def add_entry(request, dataset_id):
     """
     Add a new AudioEntry to a dataset.
-
-    Methods:
-    - GET: Show the form to add a new entry.
-    - POST: Process form submission and create the entry.
-
-    Returns:
-        Redirects to the dataset management page upon successful submission.
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
-    datasets = Dataset.objects.all().order_by('name')  # Sidebar fix
+    all_datasets = Dataset.objects.all().order_by('name')
 
     if request.method == 'POST':
         form = AudioEntryForm(request.POST, request.FILES)
@@ -90,10 +75,9 @@ def add_entry(request, dataset_id):
     else:
         form = AudioEntryForm()
 
-    context = {'dataset': dataset, 'form': form, 'datasets': datasets}
+    context = {'dataset': dataset, 'form': form, 'datasets': all_datasets}
     return render(request, 'audionomy_app/add_entry.html', context)
 
-from django.contrib import messages
 
 def delete_entry(request, entry_id):
     """
@@ -104,17 +88,34 @@ def delete_entry(request, entry_id):
 
     if request.method == "POST":
         entry.delete()
-        messages.success(request, "Entry deleted successfully.")
+        # Optionally, add a success message here.
         return redirect("manage_dataset", dataset_id=dataset_id)
 
     return render(request, "audionomy_app/confirm_delete.html", {"entry": entry})
 
+
+def edit_entry(request, entry_id):
+    """
+    Edit an existing AudioEntry.
+    """
+    entry = get_object_or_404(AudioEntry, id=entry_id)
+    dataset_id = entry.dataset.id
+    all_datasets = Dataset.objects.all().order_by('name')
+
+    if request.method == "POST":
+        form = AudioEntryForm(request.POST, request.FILES, instance=entry)
+        if form.is_valid():
+            form.save()
+            return redirect("manage_dataset", dataset_id=dataset_id)
+    else:
+        form = AudioEntryForm(instance=entry)
+
+    return render(request, "audionomy_app/edit_entry.html", {"form": form, "entry": entry, "datasets": all_datasets})
+
+
 def export_dataset(request, dataset_id):
     """
     Export dataset entries as a CSV file.
-
-    Returns:
-        CSV file with dataset details.
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
     response = HttpResponse(content_type="text/csv")
@@ -135,31 +136,55 @@ def export_dataset(request, dataset_id):
 
     return response
 
-from django.shortcuts import render, redirect, get_object_or_404
-from .models import AudioEntry
-from .forms import AudioEntryForm
 
-def edit_entry(request, entry_id):
+def export_dataset_json(request, dataset_id):
     """
-    Edit an existing AudioEntry.
-    
-    Methods:
-    - GET: Show a form pre-filled with existing data.
-    - POST: Update entry details upon form submission.
-    
-    Returns:
-        Redirects to dataset management page after saving changes.
+    Export dataset entries as a JSON file.
     """
-    entry = get_object_or_404(AudioEntry, id=entry_id)
-    dataset_id = entry.dataset.id
-    datasets = Dataset.objects.all().order_by('name')  # Sidebar fix
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    data = serializers.serialize('json', dataset.entries.all())
+    response = HttpResponse(data, content_type='application/json')
+    response['Content-Disposition'] = f'attachment; filename="{dataset.name}.json"'
+    return response
 
-    if request.method == "POST":
-        form = AudioEntryForm(request.POST, request.FILES, instance=entry)
-        if form.is_valid():
-            form.save()
-            return redirect("manage_dataset", dataset_id=dataset_id)
-    else:
-        form = AudioEntryForm(instance=entry)
 
-    return render(request, "audionomy_app/edit_entry.html", {"form": form, "entry": entry, "datasets": datasets})
+def export_dataset_parquet(request, dataset_id):
+    """
+    Export dataset entries as a Parquet file.
+    """
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    # Convert queryset values to a DataFrame
+    entries = dataset.entries.all().values(
+        "title", "style_prompt", "exclude_style_prompt", "model_used",
+        "audio1_duration", "youtube_link", "created_at"
+    )
+    df = pd.DataFrame(list(entries))
+    buffer = io.BytesIO()
+    df.to_parquet(buffer, index=False)
+    buffer.seek(0)
+    response = HttpResponse(buffer.read(), content_type='application/octet-stream')
+    response['Content-Disposition'] = f'attachment; filename="{dataset.name}.parquet"'
+    return response
+
+
+def export_audio_zip(request, dataset_id):
+    """
+    Export all audio files from a dataset as a ZIP archive.
+    """
+    dataset = get_object_or_404(Dataset, id=dataset_id)
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+        for entry in dataset.entries.all():
+            for field in ['audio_file_1', 'audio_file_2']:
+                file_field = getattr(entry, field)
+                if file_field:
+                    try:
+                        # Write file into the ZIP using a folder per entry title.
+                        zip_file.write(file_field.path, arcname=f"{entry.title}/{file_field.name}")
+                    except Exception as e:
+                        # Log error if file cannot be read.
+                        print(f"Error adding file {file_field.name} from entry '{entry.title}': {e}")
+    zip_buffer.seek(0)
+    response = HttpResponse(zip_buffer.read(), content_type='application/zip')
+    response['Content-Disposition'] = f'attachment; filename="{dataset.name}_audio.zip"'
+    return response

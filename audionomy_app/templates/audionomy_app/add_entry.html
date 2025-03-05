@@ -3,78 +3,134 @@
 
 {% block content %}
 <div class="container mt-4">
-    <h2>Add Entry to <span class="text-primary">{{ dataset.name }}</span></h2>
+  <h2>Add Entry to <span class="text-primary">{{ dataset.name }}</span></h2>
+  <form id="entryForm" method="post" enctype="multipart/form-data" class="mt-4">
+    {% csrf_token %}
     
-    <form method="post" enctype="multipart/form-data" class="mt-4">
-        {% csrf_token %}
-        
-        <!-- Form Fields -->
-        <div class="mb-3">
-            <label for="id_title" class="form-label">Title</label>
-            <input type="text" class="form-control" name="title" id="id_title" required>
-        </div>
-        
-        <div class="row">
-            <div class="col-md-6 mb-3">
-                <label for="id_style_prompt" class="form-label">Style Prompt</label>
-                <input type="text" class="form-control" name="style_prompt" id="id_style_prompt">
-            </div>
-            <div class="col-md-6 mb-3">
-                <label for="id_exclude_style_prompt" class="form-label">Exclude Style</label>
-                <input type="text" class="form-control" name="exclude_style_prompt" id="id_exclude_style_prompt">
-            </div>
-        </div>
+    <!-- Form Fields -->
+    <div class="mb-3">
+      <label for="id_title" class="form-label">Title</label>
+      <input type="text" class="form-control" name="title" id="id_title" required>
+    </div>
+    
+    <div class="row">
+      <div class="col-md-6 mb-3">
+        <label for="id_style_prompt" class="form-label">Style Prompt</label>
+        <input type="text" class="form-control" name="style_prompt" id="id_style_prompt">
+      </div>
+      <div class="col-md-6 mb-3">
+        <label for="id_exclude_style_prompt" class="form-label">Exclude Style</label>
+        <input type="text" class="form-control" name="exclude_style_prompt" id="id_exclude_style_prompt">
+      </div>
+    </div>
 
-        <div class="mb-3">
-            <label for="id_model_used" class="form-label">Model Used</label>
-            <input type="text" class="form-control" name="model_used" id="id_model_used">
-        </div>
-        
-        <div class="mb-3">
-            <label for="id_youtube_link" class="form-label">YouTube Link</label>
-            <input type="url" class="form-control" name="youtube_link" id="id_youtube_link">
-        </div>
+    <div class="mb-3">
+      <label for="id_model_used" class="form-label">Model Used</label>
+      <input type="text" class="form-control" name="model_used" id="id_model_used">
+    </div>
+    
+    <div class="mb-3">
+      <label for="id_youtube_link" class="form-label">YouTube Link</label>
+      <input type="url" class="form-control" name="youtube_link" id="id_youtube_link">
+    </div>
 
-        <!-- File Upload Section -->
-        <div class="mb-3">
-            <label for="id_audio_file_1" class="form-label">Upload Audio File 1</label>
-            <input type="file" class="form-control" name="audio_file_1" id="id_audio_file_1">
-            <div class="progress mt-2">
-                <div class="progress-bar" id="uploadProgress1" style="width: 0%;">0%</div>
-            </div>
-        </div>
+    <!-- File Upload Section with Drag-and-Drop Style -->
+    <div class="mb-3">
+      <label for="id_audio_file_1" class="form-label">Upload Audio File 1</label>
+      <div class="border border-secondary rounded p-3" id="dropZone1" style="cursor: pointer;">
+        <input type="file" class="form-control" name="audio_file_1" id="id_audio_file_1" style="display: none;">
+        <p id="fileInfo1" class="mb-0">Drag & drop your audio file here, or click to select</p>
+      </div>
+      <!-- Live audio preview -->
+      <div class="mt-2" id="audioPreview1"></div>
+      <div class="progress mt-2">
+        <div class="progress-bar" id="uploadProgress1" style="width: 0%;">0%</div>
+      </div>
+    </div>
 
-        <div class="mb-3">
-            <label for="id_audio_file_2" class="form-label">Upload Audio File 2</label>
-            <input type="file" class="form-control" name="audio_file_2" id="id_audio_file_2">
-            <div class="progress mt-2">
-                <div class="progress-bar" id="uploadProgress2" style="width: 0%;">0%</div>
-            </div>
-        </div>
+    <!-- Repeat for second audio file -->
+    <div class="mb-3">
+      <label for="id_audio_file_2" class="form-label">Upload Audio File 2 (optional)</label>
+      <div class="border border-secondary rounded p-3" id="dropZone2" style="cursor: pointer;">
+        <input type="file" class="form-control" name="audio_file_2" id="id_audio_file_2" style="display: none;">
+        <p id="fileInfo2" class="mb-0">Drag & drop your second audio file here, or click to select</p>
+      </div>
+      <!-- Live audio preview -->
+      <div class="mt-2" id="audioPreview2"></div>
+      <div class="progress mt-2">
+        <div class="progress-bar" id="uploadProgress2" style="width: 0%;">0%</div>
+      </div>
+    </div>
 
-        <!-- Submit Buttons -->
-        <button type="submit" class="btn btn-success">✅ Save Entry</button>
-        <a href="{% url 'manage_dataset' dataset.id %}" class="btn btn-secondary">❌ Cancel</a>
-    </form>
+    <!-- Submit Buttons -->
+    <div class="mt-4 text-end">
+      <button type="submit" class="btn btn-success">✅ Save Entry</button>
+      <button type="button" class="btn btn-secondary" onclick="closeAddModal()">❌ Cancel</button>
+    </div>
+  </form>
 </div>
 
-<!-- JavaScript for File Upload Progress -->
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    function updateProgress(inputId, progressId) {
-        document.getElementById(inputId).addEventListener("change", function() {
-            let progressBar = document.getElementById(progressId);
-            progressBar.style.width = "50%";
-            progressBar.innerText = "Uploading...";
-            setTimeout(() => {
-                progressBar.style.width = "100%";
-                progressBar.innerText = "Upload Complete";
-            }, 1000);
-        });
-    }
+  // Function to handle file selection and preview for an input field.
+  function handleFileInput(inputId, previewId, infoId, progressId, dropZoneId) {
+    const inputEl = document.getElementById(inputId);
+    const previewEl = document.getElementById(previewId);
+    const infoEl = document.getElementById(infoId);
+    const progressBar = document.getElementById(progressId);
+    const dropZone = document.getElementById(dropZoneId);
 
-    updateProgress("id_audio_file_1", "uploadProgress1");
-    updateProgress("id_audio_file_2", "uploadProgress2");
+    // When drop zone is clicked, trigger the file input.
+    dropZone.addEventListener('click', function() {
+      inputEl.click();
+    });
+
+    // Update the preview and info when a file is selected.
+    inputEl.addEventListener('change', function() {
+      if (inputEl.files && inputEl.files[0]) {
+        const file = inputEl.files[0];
+        infoEl.textContent = file.name;
+        // Show a live preview if it's an audio file.
+        const audioUrl = URL.createObjectURL(file);
+        previewEl.innerHTML = `<audio controls src="${audioUrl}" class="w-100"></audio>`;
+        // Simulate progress (for demo purposes)
+        progressBar.style.width = "50%";
+        progressBar.textContent = "Uploading...";
+        setTimeout(() => {
+          progressBar.style.width = "100%";
+          progressBar.textContent = "Upload Complete";
+        }, 1000);
+      }
+    });
+
+    // Optional: add dragover and drop event listeners for visual feedback.
+    dropZone.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      dropZone.classList.add('border-primary');
+    });
+    dropZone.addEventListener('dragleave', function(e) {
+      dropZone.classList.remove('border-primary');
+    });
+    dropZone.addEventListener('drop', function(e) {
+      e.preventDefault();
+      dropZone.classList.remove('border-primary');
+      const files = e.dataTransfer.files;
+      if (files.length > 0) {
+        inputEl.files = files;
+        inputEl.dispatchEvent(new Event('change'));
+      }
+    });
+  }
+
+  // Initialize for both audio file inputs.
+  handleFileInput("id_audio_file_1", "audioPreview1", "fileInfo1", "uploadProgress1", "dropZone1");
+  handleFileInput("id_audio_file_2", "audioPreview2", "fileInfo2", "uploadProgress2", "dropZone2");
 });
+
+// Example function to close the modal if using one.
+function closeAddModal() {
+  var addModal = bootstrap.Modal.getInstance(document.getElementById('addEntryModal'));
+  if (addModal) { addModal.hide(); }
+}
 </script>
 {% endblock %}

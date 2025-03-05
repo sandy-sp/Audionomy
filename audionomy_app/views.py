@@ -88,7 +88,6 @@ def delete_entry(request, entry_id):
 
     if request.method == "POST":
         entry.delete()
-        # Optionally, add a success message here.
         return redirect("manage_dataset", dataset_id=dataset_id)
 
     return render(request, "audionomy_app/confirm_delete.html", {"entry": entry})
@@ -153,7 +152,7 @@ def export_dataset_parquet(request, dataset_id):
     Export dataset entries as a Parquet file.
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
-    # Convert queryset values to a DataFrame
+    # Convert queryset values to a DataFrame.
     entries = dataset.entries.all().values(
         "title", "style_prompt", "exclude_style_prompt", "model_used",
         "audio1_duration", "youtube_link", "created_at"
@@ -182,7 +181,6 @@ def export_audio_zip(request, dataset_id):
                         # Write file into the ZIP using a folder per entry title.
                         zip_file.write(file_field.path, arcname=f"{entry.title}/{file_field.name}")
                     except Exception as e:
-                        # Log error if file cannot be read.
                         print(f"Error adding file {file_field.name} from entry '{entry.title}': {e}")
     zip_buffer.seek(0)
     response = HttpResponse(zip_buffer.read(), content_type='application/zip')

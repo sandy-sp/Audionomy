@@ -2,11 +2,79 @@
 {% block title %}Add Entry - {{ dataset.name }}{% endblock %}
 
 {% block content %}
-<h2 class="mt-3">Add Entry to {{ dataset.name }}</h2>
-<form method="post" enctype="multipart/form-data" class="mt-3">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit" class="btn btn-success">Save Entry</button>
-    <a href="{% url 'manage_dataset' dataset.id %}" class="btn btn-secondary">Cancel</a>
-</form>
+<div class="container mt-4">
+    <h2>Add Entry to <span class="text-primary">{{ dataset.name }}</span></h2>
+    
+    <form method="post" enctype="multipart/form-data" class="mt-4">
+        {% csrf_token %}
+        
+        <!-- Form Fields -->
+        <div class="mb-3">
+            <label for="id_title" class="form-label">Title</label>
+            <input type="text" class="form-control" name="title" id="id_title" required>
+        </div>
+        
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label for="id_style_prompt" class="form-label">Style Prompt</label>
+                <input type="text" class="form-control" name="style_prompt" id="id_style_prompt">
+            </div>
+            <div class="col-md-6 mb-3">
+                <label for="id_exclude_style_prompt" class="form-label">Exclude Style</label>
+                <input type="text" class="form-control" name="exclude_style_prompt" id="id_exclude_style_prompt">
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="id_model_used" class="form-label">Model Used</label>
+            <input type="text" class="form-control" name="model_used" id="id_model_used">
+        </div>
+        
+        <div class="mb-3">
+            <label for="id_youtube_link" class="form-label">YouTube Link</label>
+            <input type="url" class="form-control" name="youtube_link" id="id_youtube_link">
+        </div>
+
+        <!-- File Upload Section -->
+        <div class="mb-3">
+            <label for="id_audio_file_1" class="form-label">Upload Audio File 1</label>
+            <input type="file" class="form-control" name="audio_file_1" id="id_audio_file_1">
+            <div class="progress mt-2">
+                <div class="progress-bar" id="uploadProgress1" style="width: 0%;">0%</div>
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="id_audio_file_2" class="form-label">Upload Audio File 2</label>
+            <input type="file" class="form-control" name="audio_file_2" id="id_audio_file_2">
+            <div class="progress mt-2">
+                <div class="progress-bar" id="uploadProgress2" style="width: 0%;">0%</div>
+            </div>
+        </div>
+
+        <!-- Submit Buttons -->
+        <button type="submit" class="btn btn-success">✅ Save Entry</button>
+        <a href="{% url 'manage_dataset' dataset.id %}" class="btn btn-secondary">❌ Cancel</a>
+    </form>
+</div>
+
+<!-- JavaScript for File Upload Progress -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    function updateProgress(inputId, progressId) {
+        document.getElementById(inputId).addEventListener("change", function() {
+            let progressBar = document.getElementById(progressId);
+            progressBar.style.width = "50%";
+            progressBar.innerText = "Uploading...";
+            setTimeout(() => {
+                progressBar.style.width = "100%";
+                progressBar.innerText = "Upload Complete";
+            }, 1000);
+        });
+    }
+
+    updateProgress("id_audio_file_1", "uploadProgress1");
+    updateProgress("id_audio_file_2", "uploadProgress2");
+});
+</script>
 {% endblock %}

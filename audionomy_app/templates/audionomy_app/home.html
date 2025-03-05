@@ -2,6 +2,39 @@
 {% block title %}Home - Audionomy{% endblock %}
 
 {% block content %}
-  <h2 class="mt-3">Welcome to Audionomy</h2>
-  <p>Select a dataset from the sidebar or create a new one.</p>
+<div class="container mt-4">
+    <h2>Welcome to Audionomy</h2>
+    <p class="lead">Manage your audio datasets efficiently.</p>
+
+    <!-- Display Existing Datasets -->
+    <div class="row">
+        {% for dataset in datasets %}
+        <div class="col-md-4">
+            <div class="card shadow-sm mb-4">
+                <div class="card-body">
+                    <h5 class="card-title">{{ dataset.name }}</h5>
+                    <p class="card-text text-muted">Created on {{ dataset.created_at|date:"M d, Y" }}</p>
+                    <a href="{% url 'manage_dataset' dataset.id %}" class="btn btn-primary">Manage</a>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="col-md-12">
+            <p class="text-muted">No datasets available. Create a new dataset using the form.</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <hr>
+
+    <!-- Create Dataset Form -->
+    <h4 class="mt-4">Create a New Dataset</h4>
+    <form action="{% url 'home' %}" method="POST" class="mt-3">
+        {% csrf_token %}
+        <div class="input-group">
+            <input type="text" name="dataset_name" class="form-control" placeholder="Dataset Name" required>
+            <button type="submit" class="btn btn-success">+ Create</button>
+        </div>
+    </form>
+</div>
 {% endblock %}

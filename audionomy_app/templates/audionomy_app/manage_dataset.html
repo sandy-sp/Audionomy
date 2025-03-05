@@ -13,24 +13,33 @@
   <!-- Entries Table -->
   <table class="table table-bordered table-hover">
     <thead class="table-dark">
-      <tr>
-        <th>Title</th>
-        <th>Style</th>
-        <th>Duration</th>
-      </tr>
+        <tr>
+            <th>Title</th>
+            <th>Style Prompt</th>
+            <th>Exclude Style</th>
+            <th>Model Used</th>
+            <th>Duration</th>
+            <th>Actions</th>
+        </tr>
     </thead>
     <tbody>
-      {% for entry in entries %}
+        {% for entry in entries %}
         <tr>
-          <td>{{ entry.title }}</td>
-          <td>{{ entry.style_prompt }}</td>
-          <td>{{ entry.audio1_duration|default:"N/A" }}s</td>
+            <td>{{ entry.title }}</td>
+            <td>{{ entry.style_prompt|default:"N/A" }}</td>
+            <td>{{ entry.exclude_style_prompt|default:"N/A" }}</td>
+            <td>{{ entry.model_used|default:"N/A" }}</td>
+            <td>{{ entry.audio1_duration|default:"N/A" }}s</td>
+            <td>
+                <a href="{% url 'edit_entry' entry.id %}" class="btn btn-warning btn-sm">Edit</a>
+                <a href="{% url 'delete_entry' entry.id %}" class="btn btn-danger btn-sm">Delete</a>
+            </td>
         </tr>
-      {% empty %}
+        {% empty %}
         <tr>
-          <td colspan="3" class="text-center text-muted">No entries available.</td>
+            <td colspan="6" class="text-center text-muted">No entries available.</td>
         </tr>
-      {% endfor %}
+        {% endfor %}
     </tbody>
   </table>
 {% endblock %}

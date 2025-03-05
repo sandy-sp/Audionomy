@@ -1,15 +1,14 @@
 """
-Views for the audionomy_app in the Audionomy Django project.
+Views for the Audionomy Django project.
 
-Each view corresponds to a route defined in urls.py and handles user actions such as:
-- Displaying the home page with a list of datasets
-- Managing a specific dataset (listing entries, etc.)
-- Adding a new audio entry
-- Exporting a dataset (placeholder for future logic)
+Handles:
+- Displaying the home page and managing datasets
+- Adding, editing, and deleting audio entries
+- Exporting dataset data as CSV
 
-Relevant Models:
-- Dataset: Groups multiple AudioEntry objects
-- AudioEntry: Holds metadata & file references for an audio track
+Models:
+- Dataset: A collection of audio entries
+- AudioEntry: Individual entries with metadata and audio files
 """
 
 from django.shortcuts import (
@@ -18,21 +17,20 @@ from django.shortcuts import (
 from django.http import HttpResponse
 from django.urls import reverse
 from .models import Dataset, AudioEntry
+from .forms import AudioEntryForm
+import csv
 
 
 def home(request):
     """
-    Display the home page with all existing Datasets, and allow creating a new one.
+    Display the home page with a list of datasets and allow creating a new one.
 
     Methods:
-    - GET: Renders a template showing the list of datasets.
-    - POST: Creates a new Dataset from 'dataset_name' in form data.
-
-    Template:
-    - audionomy_app/home.html
+    - GET: Show the list of datasets.
+    - POST: Create a new dataset with a given name.
 
     Returns:
-        Renders home.html with the context {'datasets': <QuerySet of all Datasets>}
+        Renders home.html with {'datasets': <QuerySet of all Datasets>}
     """
     datasets = Dataset.objects.all().order_by('name')
 
@@ -40,7 +38,6 @@ def home(request):
         dataset_name = request.POST.get('dataset_name', '').strip()
         if dataset_name:
             Dataset.objects.create(name=dataset_name)
-        # After creating or skipping, redirect back home
         return redirect('home')
 
     context = {'datasets': datasets}
@@ -49,101 +46,119 @@ def home(request):
 
 def manage_dataset(request, dataset_id):
     """
-    Manage a specific dataset by listing its AudioEntry objects and providing
-    links to add new entries or export them.
+    View and manage a specific dataset.
 
     Methods:
-    - GET: Renders a manage_dataset.html with a table/list of AudioEntry objects.
-    - (Optional) Could handle POST if you plan to do inline editing or deletions.
-
-    Template:
-    - audionomy_app/manage_dataset.html
+    - GET: Show dataset details, list of entries, and actions (Add Entry, Export, Delete).
 
     Returns:
-        Renders manage_dataset.html with {'dataset': dataset, 'entries': dataset.entries.all()}
-        or a 404 if dataset doesn't exist.
+        Renders manage_dataset.html with {'dataset': dataset, 'entries': dataset.entries.all()}.
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
     entries = dataset.entries.all().order_by('-created_at')
+    datasets = Dataset.objects.all().order_by('name')  # Ensure sidebar always displays dataset list
 
     context = {
         'dataset': dataset,
         'entries': entries,
+        'datasets': datasets,  # Keep sidebar populated
     }
     return render(request, 'audionomy_app/manage_dataset.html', context)
 
 
 def add_entry(request, dataset_id):
     """
-    Add a new AudioEntry to a given Dataset, including optional file upload(s).
+    Add a new AudioEntry to a dataset.
 
     Methods:
-    - GET: Renders a form to fill out title, prompts, and optionally upload file(s).
-    - POST: Processes the form, creating an AudioEntry and assigning any uploaded files.
-
-    Template:
-    - audionomy_app/add_entry.html
+    - GET: Show the form to add a new entry.
+    - POST: Process form submission and create the entry.
 
     Returns:
-        Redirects to the manage_dataset page on success, or re-renders the form on GET.
+        Redirects to the dataset management page upon successful submission.
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
 
     if request.method == 'POST':
-        # Gather form fields
-        title = request.POST.get('title', '').strip()
-        style_prompt = request.POST.get('style_prompt', '').strip()
-        exclude_prompt = request.POST.get('exclude_prompt', '').strip()
-        model_used = request.POST.get('model_used', '').strip()
-        youtube_link = request.POST.get('youtube_link', '').strip()
+        form = AudioEntryForm(request.POST, request.FILES)
+        if form.is_valid():
+            entry = form.save(commit=False)
+            entry.dataset = dataset
+            entry.save()
+            return redirect('manage_dataset', dataset_id=dataset.id)
+    else:
+        form = AudioEntryForm()
 
-        file1 = request.FILES.get('audio_file_1')
-        file2 = request.FILES.get('audio_file_2')
-
-        # Create the entry
-        entry = AudioEntry(
-            dataset=dataset,
-            title=title,
-            style_prompt=style_prompt,
-            exclude_style_prompt=exclude_prompt,
-            model_used=model_used,
-            youtube_link=youtube_link,
-        )
-        # Assign uploaded files if present
-        if file1:
-            entry.audio_file_1 = file1
-        if file2:
-            entry.audio_file_2 = file2
-
-        entry.save()  # triggers pydub-based duration if files are present
-
-        return redirect('manage_dataset', dataset_id=dataset_id)
-
-    # If GET, just show the form
-    context = {'dataset': dataset}
+    context = {'dataset': dataset, 'form': form}
     return render(request, 'audionomy_app/add_entry.html', context)
 
 
-import csv
-from django.http import HttpResponse
+def delete_entry(request, entry_id):
+    """
+    Delete an audio entry from a dataset.
+
+    Methods:
+    - POST: Deletes the entry and redirects to the dataset management page.
+
+    Returns:
+        Redirects back to the dataset page after deletion.
+    """
+    entry = get_object_or_404(AudioEntry, id=entry_id)
+    dataset_id = entry.dataset.id
+    entry.delete()
+    return redirect('manage_dataset', dataset_id=dataset_id)
+
 
 def export_dataset(request, dataset_id):
     """
     Export dataset entries as a CSV file.
+
+    Returns:
+        CSV file with dataset details.
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
     response = HttpResponse(content_type="text/csv")
     response['Content-Disposition'] = f'attachment; filename="{dataset.name}.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(["Title", "Style", "Duration", "YouTube Link"])
+    writer.writerow(["Title", "Style Prompt", "Exclude Style", "Model Used", "Duration", "YouTube Link"])
 
     for entry in dataset.entries.all():
         writer.writerow([
             entry.title,
             entry.style_prompt or "N/A",
+            entry.exclude_style_prompt or "N/A",
+            entry.model_used or "N/A",
             entry.audio1_duration or "N/A",
             entry.youtube_link or "N/A"
         ])
 
     return response
+
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import AudioEntry
+from .forms import AudioEntryForm
+
+def edit_entry(request, entry_id):
+    """
+    Edit an existing AudioEntry.
+    
+    Methods:
+    - GET: Show a form pre-filled with existing data.
+    - POST: Update entry details upon form submission.
+    
+    Returns:
+        Redirects to dataset management page after saving changes.
+    """
+    entry = get_object_or_404(AudioEntry, id=entry_id)
+    dataset_id = entry.dataset.id  # Preserve dataset association
+
+    if request.method == "POST":
+        form = AudioEntryForm(request.POST, request.FILES, instance=entry)
+        if form.is_valid():
+            form.save()
+            return redirect("manage_dataset", dataset_id=dataset_id)
+    else:
+        form = AudioEntryForm(instance=entry)
+
+    return render(request, "audionomy_app/edit_entry.html", {"form": form, "entry": entry})

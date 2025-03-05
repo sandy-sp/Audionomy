@@ -1,0 +1,12 @@
+{% extends 'audionomy_app/base.html' %}
+{% block title %}Edit Entry - {{ entry.title }}{% endblock %}
+
+{% block content %}
+<h2>Edit Entry: {{ entry.title }}</h2>
+<form method="post" enctype="multipart/form-data" class="mt-3">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit" class="btn btn-success">Save Changes</button>
+    <a href="{% url 'manage_dataset' entry.dataset.id %}" class="btn btn-secondary">Cancel</a>
+</form>
+{% endblock %}

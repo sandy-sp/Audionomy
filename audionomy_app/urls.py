@@ -14,18 +14,15 @@ audionomy_project/urls.py -> includes these routes at the root level.
 """
 
 from django.urls import path
-from . import views
+from .views import (
+    home, manage_dataset, add_entry, delete_entry, export_dataset, edit_entry
+)
 
 urlpatterns = [
-    # Home page: shows list of datasets & form to create new one
-    path('', views.home, name='home'),
-
-    # Manage a specific dataset: list entries, links to add or export
-    path('manage/<int:dataset_id>/', views.manage_dataset, name='manage_dataset'),
-
-    # Add a new audio entry to a given dataset
-    path('manage/<int:dataset_id>/add_entry/', views.add_entry, name='add_entry'),
-
-    # Export dataset (placeholder in views)
-    path('manage/<int:dataset_id>/export/', views.export_dataset, name='export_dataset'),
+    path("", home, name="home"),
+    path("manage/<int:dataset_id>/", manage_dataset, name="manage_dataset"),
+    path("add_entry/<int:dataset_id>/", add_entry, name="add_entry"),
+    path("delete_entry/<int:entry_id>/", delete_entry, name="delete_entry"),
+    path("export_dataset/<int:dataset_id>/", export_dataset, name="export_dataset"),
+    path("edit_entry/<int:entry_id>/", edit_entry, name="edit_entry"),  # ✅ Fix
 ]

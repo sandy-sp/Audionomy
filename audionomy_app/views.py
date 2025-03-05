@@ -98,12 +98,6 @@ from django.contrib import messages
 def delete_entry(request, entry_id):
     """
     Delete an audio entry from a dataset.
-
-    Methods:
-    - POST: Deletes the entry and redirects to the dataset management page.
-
-    Returns:
-        Redirects back to the dataset page after deletion.
     """
     entry = get_object_or_404(AudioEntry, id=entry_id)
     dataset_id = entry.dataset.id

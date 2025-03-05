@@ -1,4 +1,4 @@
-# gui/views/home.py
+# Updated home.py with enhanced error handling
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QTableWidget, QTableWidgetItem
 )
@@ -17,18 +17,18 @@ class HomeView(QWidget):
     def setup_ui(self):
         layout = QVBoxLayout(self)
 
-        layout.addWidget(QLabel("Welcome to Audionomy!"))
+        layout.addWidget(QLabel("Welcome to Audionomy!", self))
 
-        btn_create_dataset = QPushButton("📁 Create New Dataset")
-        btn_create_dataset.clicked.connect(self.create_dataset)
-        layout.addWidget(btn_create_dataset)
+        btn_create = QPushButton("📁 Create New Dataset")
+        btn_create.clicked.connect(self.create_dataset)
+        layout.addWidget(btn_create)
 
-        btn_open_dataset = QPushButton("📂 Open Existing Dataset")
-        btn_open_dataset.clicked.connect(self.open_dataset)
-        layout.addWidget(btn_open_dataset)
+        btn_open = QPushButton("📂 Open Existing Dataset")
+        btn_open.clicked.connect(self.open_dataset)
+        layout.addWidget(btn_open)
 
         btn_visualize = QPushButton("📊 Visualize Dataset")
-        btn_visualize.clicked.connect(self.visualize_dataset)  # Fix is here
+        btn_visualize.clicked.connect(self.visualize_dataset)
         layout.addWidget(btn_visualize)
 
         btn_export = QPushButton("📥 Export Dataset")
@@ -42,54 +42,67 @@ class HomeView(QWidget):
         dialog = CreateDatasetDialog(self)
         if dialog.exec():
             data = dialog.get_data()
-            dataset_path = os.path.join(data['save_path'], data['dataset_name'])
-            os.makedirs(dataset_path, exist_ok=True)
-            self.dataset_manager = DatasetManager(dataset_path)
-            self.dataset_manager.init_metadata()
-            QMessageBox.information(self, "Success", f"Dataset '{data['dataset_name']}' created at {dataset_path}")
+            try:
+                dataset_path = os.path.join(data['save_path'], data['dataset_name'])
+                os.makedirs(dataset_path, exist_ok=True)
+                self.dataset_manager = DatasetManager(dataset_path)
+                self.dataset_manager.init_metadata()
+                QMessageBox.information(self, "Success", f"Dataset '{data['dataset_name']}' created successfully.")
+            except Exception as e:
+                QMessageBox.critical(self, "Creation Error", str(e))
 
     def open_dataset(self):
-        dataset_path = QFileDialog.getExistingDirectory(self, "Select Dataset Folder")
-        if dataset_path:
-            self.dataset_manager = DatasetManager(dataset_path)
-            self.refresh_table()
-            QMessageBox.information(self, "Dataset Loaded", f"Dataset loaded from {dataset_path}")
+        try:
+            dataset_path = QFileDialog.getExistingDirectory(self, "Select Dataset Folder")
+            if dataset_path:
+                self.dataset_manager = DatasetManager(dataset_path)
+                self.refresh_table()
+                QMessageBox.information(self, "Loaded", f"Dataset loaded from {dataset_path}")
+        except Exception as e:
+            QMessageBox.critical(self, "Loading Error", str(e))
 
     def refresh_table(self):
-        if self.dataset_manager:
-            df = self.dataset_manager.load_metadata()
-            if df.empty:
-                QMessageBox.information(self, "Empty Dataset", "This dataset currently has no entries.")
-                return
+        if not self.dataset_manager:
+            QMessageBox.warning(self, "No Dataset", "Please load or create a dataset first.")
+            return
 
-            table = QTableWidget(len(df), len(df.columns), self)
-            table.setHorizontalHeaderLabels(df.columns.tolist())
+        df = self.dataset_manager.load_metadata()
+        self.table.clear()
 
-            for i, row in df.iterrows():
-                for j, val in enumerate(row):
-                    table.setItem(i, j, QTableWidgetItem(str(val)))
+        if df.empty:
+            QMessageBox.information(self, "Empty Dataset", "No entries in the dataset.")
+            return
 
-            layout = self.layout()
-            layout.addWidget(table)
+        self.table.setColumnCount(len(df.columns))
+        self.table.setRowCount(len(df))
+        self.table.setHorizontalHeaderLabels(df.columns)
 
-    def open_dataset(self):
-        dataset_path = QFileDialog.getExistingDirectory(self, "Select Dataset")
-        if dataset_path:
-            self.dataset_manager = DatasetManager(dataset_path)
-            self.refresh_table()
+        for i, row in df.iterrows():
+            for j, (col, val) in enumerate(row.items()):
+                self.table.setItem(i, j, QTableWidgetItem(str(val)))
 
     def visualize_dataset(self):
-        if self.dataset_manager:
-            df = self.dataset_manager.load_metadata()
-            if df.empty:
-                QMessageBox.warning(self, "No Data", "No data available for visualization.")
-                return
-            fig = px.bar(df, x='song_title', y='duration', title='Audio Durations')
-            fig.show()
+        if not self.dataset_manager:
+            QMessageBox.warning(self, "No Dataset", "Please load or create a dataset first.")
+            return
+
+        df = self.dataset_manager.load_metadata()
+        if df.empty:
+            QMessageBox.warning(self, "Empty Dataset", "Dataset contains no entries to visualize.")
+            return
+
+        fig = px.bar(df, x='song_title', y='duration', title="Audio Duration Visualization")
+        fig.show()
 
     def export_dataset(self):
-        if self.dataset_manager:
-            export_path = QFileDialog.getExistingDirectory(self, "Export Dataset To")
-            if export_path:
+        if not self.dataset_manager:
+            QMessageBox.warning(self, "No Dataset", "Please load or create a dataset first.")
+            return
+
+        export_path = QFileDialog.getExistingDirectory(self, "Select Export Directory")
+        if export_path:
+            try:
                 self.dataset_manager.export_all(export_path)
-                QMessageBox.information(self, "Exported", f"Dataset exported to {export_path}")
+                QMessageBox.information(self, "Export Complete", f"Dataset exported to {export_path}")
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", str(e))

@@ -1,11 +1,9 @@
 """
-Django Admin configuration for the audionomy_app.
+Django Admin configuration for audionomy_app.
 
 This file defines how the Dataset and AudioEntry models appear and behave
-in the Django admin site, letting administrators view, search, and manage records.
-
-Reference:
-    https://docs.djangoproject.com/en/4.2/ref/contrib/admin/
+in the Django admin site, allowing administrators to view, search, filter, 
+and manage audio datasets and entries.
 """
 
 from django.contrib import admin
@@ -15,10 +13,11 @@ from .models import Dataset, AudioEntry
 @admin.register(Dataset)
 class DatasetAdmin(admin.ModelAdmin):
     """
-    Customize how Dataset objects are displayed in the admin.
-    - Shows 'name' and 'created_at' in the list view.
-    - Allows searching by 'name'.
-    - Provides a date hierarchy based on 'created_at' if desired.
+    Admin view configuration for Dataset.
+    
+    - Displays the dataset name and creation date.
+    - Allows searching by name.
+    - Provides date hierarchy for creation dates.
     """
     list_display = ("name", "created_at")
     search_fields = ("name",)
@@ -29,19 +28,24 @@ class DatasetAdmin(admin.ModelAdmin):
 @admin.register(AudioEntry)
 class AudioEntryAdmin(admin.ModelAdmin):
     """
-    Customize how AudioEntry objects are displayed in the admin.
-    - Lists title, dataset, durations, and creation date.
-    - Enables searching by 'title'.
-    - Allows filtering by 'dataset'.
+    Admin view configuration for AudioEntry.
+    
+    - Displays key metadata: title, associated dataset, model used,
+      audio durations, and creation date.
+    - Allows searching by title and filtering by dataset.
+    - Provides date hierarchy for creation dates.
+    - Extra fields such as lyrics, persona, and sample file can be viewed 
+      by clicking into the detail page.
     """
     list_display = (
         "title",
         "dataset",
+        "model_used",
         "audio1_duration",
         "audio2_duration",
         "created_at"
     )
-    search_fields = ("title",)
+    search_fields = ("title", "style_prompt", "exclude_style_prompt", "model_used")
     list_filter = ("dataset",)
     date_hierarchy = "created_at"
     ordering = ("-created_at",)

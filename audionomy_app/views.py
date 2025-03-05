@@ -37,7 +37,7 @@ def home(request):
     if request.method == 'POST':
         dataset_name = request.POST.get('dataset_name', '').strip()
         if dataset_name:
-            Dataset.objects.create(name=dataset_name)
+            dataset, created = Dataset.objects.get_or_create(name=dataset_name)
         return redirect('home')
 
     context = {'datasets': datasets}
@@ -56,12 +56,12 @@ def manage_dataset(request, dataset_id):
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
     entries = dataset.entries.all().order_by('-created_at')
-    datasets = Dataset.objects.all().order_by('name')  # Ensure sidebar always displays dataset list
+    datasets = Dataset.objects.all().order_by('name')  # Sidebar fix
 
     context = {
         'dataset': dataset,
         'entries': entries,
-        'datasets': datasets,  # Keep sidebar populated
+        'datasets': datasets,  # Sidebar datasets
     }
     return render(request, 'audionomy_app/manage_dataset.html', context)
 
@@ -78,6 +78,7 @@ def add_entry(request, dataset_id):
         Redirects to the dataset management page upon successful submission.
     """
     dataset = get_object_or_404(Dataset, id=dataset_id)
+    datasets = Dataset.objects.all().order_by('name')  # Sidebar fix
 
     if request.method == 'POST':
         form = AudioEntryForm(request.POST, request.FILES)
@@ -89,9 +90,10 @@ def add_entry(request, dataset_id):
     else:
         form = AudioEntryForm()
 
-    context = {'dataset': dataset, 'form': form}
+    context = {'dataset': dataset, 'form': form, 'datasets': datasets}
     return render(request, 'audionomy_app/add_entry.html', context)
 
+from django.contrib import messages
 
 def delete_entry(request, entry_id):
     """
@@ -105,9 +107,13 @@ def delete_entry(request, entry_id):
     """
     entry = get_object_or_404(AudioEntry, id=entry_id)
     dataset_id = entry.dataset.id
-    entry.delete()
-    return redirect('manage_dataset', dataset_id=dataset_id)
 
+    if request.method == "POST":
+        entry.delete()
+        messages.success(request, "Entry deleted successfully.")
+        return redirect("manage_dataset", dataset_id=dataset_id)
+
+    return render(request, "audionomy_app/confirm_delete.html", {"entry": entry})
 
 def export_dataset(request, dataset_id):
     """
@@ -121,7 +127,7 @@ def export_dataset(request, dataset_id):
     response['Content-Disposition'] = f'attachment; filename="{dataset.name}.csv"'
 
     writer = csv.writer(response)
-    writer.writerow(["Title", "Style Prompt", "Exclude Style", "Model Used", "Duration", "YouTube Link"])
+    writer.writerow(["Title", "Style Prompt", "Exclude Style", "Model Used", "Duration (s)", "YouTube Link"])
 
     for entry in dataset.entries.all():
         writer.writerow([
@@ -151,7 +157,8 @@ def edit_entry(request, entry_id):
         Redirects to dataset management page after saving changes.
     """
     entry = get_object_or_404(AudioEntry, id=entry_id)
-    dataset_id = entry.dataset.id  # Preserve dataset association
+    dataset_id = entry.dataset.id
+    datasets = Dataset.objects.all().order_by('name')  # Sidebar fix
 
     if request.method == "POST":
         form = AudioEntryForm(request.POST, request.FILES, instance=entry)
@@ -161,4 +168,4 @@ def edit_entry(request, entry_id):
     else:
         form = AudioEntryForm(instance=entry)
 
-    return render(request, "audionomy_app/edit_entry.html", {"form": form, "entry": entry})
+    return render(request, "audionomy_app/edit_entry.html", {"form": form, "entry": entry, "datasets": datasets})

@@ -12,11 +12,8 @@ in views.py. It includes:
 See also:
 audionomy_project/urls.py -> includes these routes at the root level.
 """
-
 from django.urls import path
-from .views import (
-    home, manage_dataset, add_entry, delete_entry, export_dataset, edit_entry
-)
+from .views import home, manage_dataset, add_entry, delete_entry, export_dataset, edit_entry
 
 urlpatterns = [
     path("", home, name="home"),

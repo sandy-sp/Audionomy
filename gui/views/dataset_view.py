@@ -44,6 +44,11 @@ class DatasetView(QWidget):
         btn_export.clicked.connect(self.export_dataset)
         layout.addWidget(btn_export)
 
+        # Export to Hugging Face button
+        btn_hf_export = QPushButton("🚀 Export to Hugging Face")
+        btn_hf_export.clicked.connect(self.export_huggingface)
+        layout.addWidget(btn_hf_export)
+
         self.setLayout(layout)
 
     def load_data(self):
@@ -84,4 +89,15 @@ class DatasetView(QWidget):
         if export_path:
             self.dataset_manager.export_dataset(export_path)
             QMessageBox.information(self, "Export Complete", f"Dataset exported to {export_path}")
+    
+    def export_huggingface(self):
+        repo_name, ok = QInputDialog.getText(self, "Hugging Face Repo", "Enter repository name (username/repo):")
+        if ok and repo_name:
+            try:
+                self.dataset_manager.export_to_huggingface(repo_name)
+                QMessageBox.information(self, "Exported", f"Dataset exported to Hugging Face repo: {repo_name}")
+                self.status_bar.showMessage(f"Exported to Hugging Face: {repo_name}", 5000)
+            except Exception as e:
+                QMessageBox.critical(self, "Export Error", str(e))
+
 

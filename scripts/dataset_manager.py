@@ -5,6 +5,7 @@ from pydub.utils import mediainfo
 from datetime import datetime
 import shutil
 import zipfile
+from datasets import Dataset, DatasetDict
 
 class DatasetManager:
     def __init__(self, dataset_path, create_new=False, columns=None):
@@ -83,3 +84,13 @@ class DatasetManager:
                         os.path.join(root, file),
                         arcname=os.path.relpath(os.path.join(root, file), self.audio_dir)
                     )
+
+    def export_to_huggingface(self, repo_name, split='train'):
+        df = pd.read_csv(self.metadata_csv)
+        if df.empty:
+            raise ValueError("Dataset is empty, nothing to export.")
+
+        dataset = Dataset.from_pandas(df)
+
+        dataset_dict = DatasetDict({split: dataset})
+        dataset_dict.push_to_hub(repo_name)

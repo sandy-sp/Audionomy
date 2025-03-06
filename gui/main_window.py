@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (
 )
 from PySide6.QtCore import Qt
 import qtawesome as qta
-
+from scripts.dataset_manager import DatasetManager
 # Import Views
 from gui.views.dashboard_view import DashboardWidget
 from gui.views.dataset_view import DatasetView
@@ -53,6 +53,12 @@ class ModernMainWindow(QMainWindow):
 
         # Set default page
         self.switch_page(0)
+
+        self.dataset_manager = DatasetManager("datasets")  # Ensure dataset manager is initialized
+
+        # Ensure `dataset_manager` is passed when creating `VisualizationWidget`
+        self.visualization_page = VisualizationWidget(dataset_manager=self.dataset_manager)
+
 
     def create_sidebar(self):
         """Creates the sidebar with navigation buttons."""

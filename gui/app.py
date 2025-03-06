@@ -8,14 +8,15 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Audionomy")
-        self.setWindowIcon(qta.icon('fa5s.music'))
+        self.setWindowIcon(qta.icon('fa5s.headphones'))
 
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage("Welcome to Audionomy")
 
         self.home_view = HomeView(self.status_bar)
         self.setCentralWidget(self.home_view)
-        self.resize(800, 600)
+        self.resize(1024, 720)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

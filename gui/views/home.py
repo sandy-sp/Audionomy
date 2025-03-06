@@ -1,13 +1,9 @@
-from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox
-)
-from PySide6.QtCore import Qt  # ✅ Fix: added missing import
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox
+from PySide6.QtCore import Qt
 from components.dialogs import CreateDatasetDialog
 from scripts.dataset_manager import DatasetManager
-import os
-from gui.views.visualization import VisualizationWidget
-from PySide6.QtWidgets import QFileDialog
 from gui.views.dataset_view import DatasetView
+import os
 
 class HomeView(QWidget):
     def __init__(self, status_bar):
@@ -18,9 +14,10 @@ class HomeView(QWidget):
 
     def setup_ui(self):
         layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignTop)
+        layout.setAlignment(Qt.AlignCenter)
 
-        layout.addWidget(QLabel("<h2>🎧 Audionomy Dataset Manager</h2>"))
+        title = QLabel("<h1>🎧 Audionomy</h1>")
+        layout.addWidget(title, alignment=Qt.AlignCenter)
 
         btn_create = QPushButton("📁 Create New Dataset")
         btn_create.clicked.connect(self.create_dataset)
@@ -40,43 +37,23 @@ class HomeView(QWidget):
             self.dataset_manager = DatasetManager(full_path, create_new=True, columns=columns)
             self.dataset_manager.init_metadata()
 
-            QMessageBox.information(self, "Success", f"Dataset '{dataset_name}' created successfully!")
+            QMessageBox.information(self, "Success", f"Dataset '{dataset_name}' created!")
             self.status_bar.showMessage(f"Dataset '{dataset_name}' created.", 5000)
-            self.switch_to_dataset_view()  # transition clearly after creation
-
+            self.switch_to_dataset_view()
 
     def open_dataset(self):
         path = QFileDialog.getExistingDirectory(self, "Open Dataset")
         if path:
             template_files = [f for f in os.listdir(path) if f.endswith('.template')]
             if not template_files:
-                QMessageBox.critical(self, "Invalid Dataset", "No valid .template file found in this folder!")
+                QMessageBox.warning(self, "Error", "Not an Audionomy dataset folder.")
                 return
 
             self.dataset_manager = DatasetManager(path)
-            self.status_bar.showMessage(f"Dataset '{os.path.basename(path)}' loaded", 5000)
-            self.switch_to_dataset_view()  # transition to dedicated view
+            QMessageBox.information(self, "Loaded", f"Dataset loaded from {path}")
+            self.status_bar.showMessage(f"Dataset loaded from {path}", 5000)
+            self.switch_to_dataset_view()
 
-    def visualize_dataset(self):
-        if not self.dataset_manager:
-            QMessageBox.warning(self, "Error", "Load or create a dataset first.")
-            return
-
-        self.vis_widget = VisualizationWidget(self.dataset_manager)
-        self.vis_widget.setWindowTitle("Dataset Visualization")
-        self.vis_widget.resize(800, 600)
-        self.vis_widget.show()
-
-    def export_dataset(self):
-        if not self.dataset_manager:
-            QMessageBox.warning(self, "Error", "Load or create a dataset first.")
-            return
-
-        export_path = QFileDialog.getExistingDirectory(self, "Select Export Folder")
-        if export_path:
-            self.dataset_manager.export_dataset(export_path)
-            QMessageBox.information(self, "Export Complete", f"Dataset exported to {export_path}")
-    
     def switch_to_dataset_view(self):
         self.dataset_view = DatasetView(self.dataset_manager, self.status_bar)
         self.window().setCentralWidget(self.dataset_view)

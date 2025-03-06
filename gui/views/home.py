@@ -5,6 +5,8 @@ from PySide6.QtCore import Qt  # ✅ Fix: added missing import
 from components.dialogs import CreateDatasetDialog
 from scripts.dataset_manager import DatasetManager
 import os
+from gui.views.visualization import VisualizationWidget
+from PySide6.QtWidgets import QFileDialog
 
 class HomeView(QWidget):
     def __init__(self, status_bar):
@@ -58,3 +60,23 @@ class HomeView(QWidget):
             self.dataset_manager = DatasetManager(path)
             QMessageBox.information(self, "Loaded", f"Dataset loaded from {path}")
             self.status_bar.showMessage(f"Dataset loaded from {path}", 5000)
+
+    def visualize_dataset(self):
+        if not self.dataset_manager:
+            QMessageBox.warning(self, "Error", "Load or create a dataset first.")
+            return
+
+        self.vis_widget = VisualizationWidget(self.dataset_manager)
+        self.vis_widget.setWindowTitle("Dataset Visualization")
+        self.vis_widget.resize(800, 600)
+        self.vis_widget.show()
+
+    def export_dataset(self):
+        if not self.dataset_manager:
+            QMessageBox.warning(self, "Error", "Load or create a dataset first.")
+            return
+
+        export_path = QFileDialog.getExistingDirectory(self, "Select Export Folder")
+        if export_path:
+            self.dataset_manager.export_dataset(export_path)
+            QMessageBox.information(self, "Export Complete", f"Dataset exported to {export_path}")

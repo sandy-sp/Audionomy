@@ -3,6 +3,8 @@ import pandas as pd
 import json
 from pydub.utils import mediainfo
 from datetime import datetime
+import shutil
+import zipfile
 
 class DatasetManager:
     def __init__(self, dataset_path, create_new=False, columns=None):
@@ -61,3 +63,21 @@ class DatasetManager:
             "file_format": info.get('format_name'),
             "duration": round(float(info.get('duration', 0)), 2)
         }
+
+    def export_dataset(self, export_path):
+        os.makedirs(export_path, exist_ok=True)
+
+        # Export metadata
+        df = pd.read_csv(self.metadata_csv)
+        df.to_csv(os.path.join(export_path, 'metadata.csv'), index=False)
+        df.to_json(os.path.join(export_path, 'metadata.json'), orient='records', indent=2)
+        df.to_parquet(os.path.join(export_path, 'metadata.parquet'), index=False)
+
+        # Export audio files in ZIP
+        zip_path = os.path.join(export_path, "audio_files.zip")
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, _, files in os.walk(self.audio_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, self.audio_dir)
+                    zipf.write(file_path, arcname)

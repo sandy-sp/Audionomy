@@ -58,8 +58,9 @@ class DatasetView(QWidget):
                 self.table.setItem(i, j, QTableWidgetItem(str(row[col])))
 
     def add_entry(self):
-        form = EntryForm(self.dataset_manager, self.status_bar)
-        form.show()
+        self.entry_form = EntryForm(self.dataset_manager, self.status_bar, self.load_data)
+        self.entry_form.setWindowTitle("Add New Audio Entry")
+        self.entry_form.show()
 
     def remove_entry(self):
         selected_items = self.table.selectedItems()

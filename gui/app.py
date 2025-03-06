@@ -12,11 +12,10 @@ class MainWindow(QMainWindow):
 
         self.status_bar = QStatusBar()
         self.setStatusBar(self.status_bar)
-        self.status_bar.showMessage("Ready")
 
         self.home_view = HomeView(self.status_bar)
         self.setCentralWidget(self.home_view)
-        self.resize(1200, 800)
+        self.resize(800, 600)
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

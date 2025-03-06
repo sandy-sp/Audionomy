@@ -1,9 +1,7 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox
-from PySide6.QtCore import Qt
+from components.create_dataset_dialog import CreateDatasetDialog
 from scripts.dataset_manager import DatasetManager
-from components.dialogs import CreateDatasetDialog
-from components.entry_form import EntryForm
-from PySide6.QtWidgets import QDialog, QVBoxLayout
+import os
 
 class HomeView(QWidget):
     def __init__(self, status_bar):
@@ -16,71 +14,34 @@ class HomeView(QWidget):
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignTop)
 
-        layout.addWidget(QLabel("<h1>🎧 Audionomy</h1>"))
+        layout.addWidget(QLabel("<h2>🎧 Audionomy Dataset Manager</h2>"))
 
-        btn_create = QPushButton("📁 Create New Dataset")
+        btn_create = QPushButton("Create Dataset")
         btn_create.clicked.connect(self.create_dataset)
         layout.addWidget(btn_create)
 
-        btn_open = QPushButton("📂 Open Existing Dataset")
+        btn_open = QPushButton("Open Existing Dataset")
         btn_open.clicked.connect(self.open_dataset)
         layout.addWidget(btn_open)
-
-        btn_add_entry = QPushButton("➕ Add Audio Entry")
-        btn_add_entry.clicked.connect(self.add_audio_entry)
-        layout.addWidget(btn_add_entry)
-
-        btn_visualize = QPushButton("📊 Visualize Dataset")
-        btn_visualize.clicked.connect(self.visualize_dataset)
-        layout.addWidget(btn_visualize)
-
-        btn_export = QPushButton("📥 Export Dataset")
-        btn_export.clicked.connect(self.export_dataset)
-        layout.addWidget(btn_export)
 
     def create_dataset(self):
         dialog = CreateDatasetDialog(self)
         if dialog.exec():
-            data = dialog.get_data()
-            dataset_path = os.path.join(data['save_path'], data['dataset_name'])
-            os.makedirs(dataset_path, exist_ok=True)
-            self.dataset_manager = DatasetManager(dataset_path)
-            self.dataset_manager.init_metadata()
-            QMessageBox.information(self, "Success", f"Dataset created at {dataset_path}")
-            self.status_bar.showMessage(f"Dataset created at {dataset_path}", 5000)
+            dataset_name, dataset_path = dialog.get_data()
+            full_path = os.path.join(dataset_path, dataset_name)
+            os.makedirs(full_path, exist_ok=True)
+
+            self.dataset_manager = DatasetManager(full_path)
+            self.dataset_manager.create_template()
+            self.status_bar.showMessage(f"Dataset '{dataset_name}' created at {full_path}", 5000)
 
     def open_dataset(self):
-        path = QFileDialog.getExistingDirectory(self, "Open Dataset")
+        path = QFileDialog.getExistingDirectory(self, "Select Dataset Folder")
         if path:
+            template_files = [f for f in os.listdir(path) if f.endswith(".template")]
+            if not template_files:
+                QMessageBox.warning(self, "Invalid Dataset", "No Audionomy dataset (.template) found!")
+                return
+
             self.dataset_manager = DatasetManager(path)
-            QMessageBox.information(self, "Loaded", f"Dataset loaded from {path}")
-            self.status_bar.showMessage(f"Dataset loaded from {path}", 5000)
-
-    def add_audio_entry(self):
-        if not self.dataset_manager:
-            QMessageBox.warning(self, "No Dataset", "Please load/create a dataset first.")
-            return
-        dialog = QDialog(self)
-        dialog.setWindowTitle("Add Audio Entry")
-        layout = QVBoxLayout(dialog)
-        entry_form = EntryForm(self.dataset_manager, self.status_bar)
-        layout.addWidget(entry_form)
-        dialog.setLayout(layout)
-        dialog.exec()
-
-    def visualize_dataset(self):
-        if self.dataset_manager:
-            self.dataset_manager.visualize()
-            self.status_bar.showMessage("Visualization opened", 5000)
-        else:
-            QMessageBox.warning(self, "No Dataset", "Load a dataset first.")
-
-    def export_dataset(self):
-        if self.dataset_manager:
-            export_path = QFileDialog.getExistingDirectory(self, "Export Dataset")
-            if export_path:
-                self.dataset_manager.export_all(export_path)
-                QMessageBox.information(self, "Exported", f"Dataset exported to {export_path}")
-                self.status_bar.showMessage(f"Dataset exported to {export_path}", 5000)
-        else:
-            QMessageBox.warning(self, "No Dataset", "Load a dataset first.")
+            self.status_bar.showMessage(f"Loaded dataset from {path}", 5000)

@@ -2,6 +2,8 @@ from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDi
 from PySide6.QtCore import Qt
 from scripts.dataset_manager import DatasetManager
 from components.dialogs import CreateDatasetDialog
+from components.entry_form import EntryForm
+from PySide6.QtWidgets import QDialog, QVBoxLayout
 
 class HomeView(QWidget):
     def __init__(self, status_bar):
@@ -58,7 +60,13 @@ class HomeView(QWidget):
         if not self.dataset_manager:
             QMessageBox.warning(self, "No Dataset", "Please load/create a dataset first.")
             return
-        QMessageBox.information(self, "Coming Soon", "Audio entry form integration will be next!")
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Add Audio Entry")
+        layout = QVBoxLayout(dialog)
+        entry_form = EntryForm(self.dataset_manager, self.status_bar)
+        layout.addWidget(entry_form)
+        dialog.setLayout(layout)
+        dialog.exec()
 
     def visualize_dataset(self):
         if self.dataset_manager:

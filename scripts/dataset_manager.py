@@ -38,7 +38,8 @@ class DatasetManager:
         if df.empty:
             print("No data to visualize.")
             return
-        fig = px.bar(df, x='song_title', y='duration', color='style_prompt', title="Audio Dataset Overview")
+        fig = px.bar(df, x='song_title', y='duration', color='style_prompt', title="Interactive Audio Dataset Overview")
+        fig.update_layout(barmode='group', xaxis_tickangle=-45)
         fig.show()
 
     def export_all(self, export_path):

@@ -7,7 +7,6 @@ import librosa.display
 import soundfile as sf
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
-import essentia.standard as es
 import mutagen
 from mutagen.mp3 import MP3
 from mutagen.flac import FLAC
@@ -60,8 +59,6 @@ class AudioProcessor:
         # Extract metadata using Mutagen
         mutagen_data = self.extract_metadata_tags(file_path)
 
-        # Extract loudness using Essentia
-        loudness = self.extract_loudness(file_path)
 
         return {
             "filename": os.path.basename(file_path),

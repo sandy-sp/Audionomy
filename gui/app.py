@@ -14,20 +14,19 @@ class AudionomyApp(QApplication):
         super().__init__(argv)
         self.setApplicationName("Audionomy")
         self.settings = QSettings("Audionomy", "Audionomy")
-        
-        # Load Theme
-        self.load_theme()
 
-        # Load & Apply Stylesheet
-        self.apply_stylesheet()
+        # Load theme instantly
+        self.apply_theme()
 
-    def load_theme(self):
-        """Loads the user-selected theme from settings."""
+    def apply_theme(self):
+        """Applies the saved theme instantly."""
         theme = self.settings.value("theme", "Light")
         if theme == "Dark":
             self.setStyle("Fusion")
         elif theme == "Light":
             self.setStyle("Windows")
+        else:
+            self.setStyle("System")
 
     def apply_stylesheet(self):
         """Applies the stylesheet from the resources folder."""

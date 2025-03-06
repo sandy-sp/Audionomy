@@ -43,6 +43,7 @@ class SettingsView(QWidget):
     def __init__(self, status_bar, parent=None):
         super().__init__(parent)
         self.status_bar = status_bar
+        self.app_instance = parent
         self.settings = QSettings("Audionomy", "Audionomy")
         self.setup_ui()
         self.load_settings()
@@ -80,7 +81,7 @@ class SettingsView(QWidget):
         reset_btn.clicked.connect(self.reset_settings)
 
         # Save Button
-        save_btn = QPushButton(qta.icon("fa5s.save"), "Save Settings")
+        save_btn = QPushButton("✅ Apply Changes")
         save_btn.setObjectName("primary-button")
         save_btn.clicked.connect(self.save_settings)
 
@@ -93,6 +94,10 @@ class SettingsView(QWidget):
         self.log_button = QPushButton("📜 Open Log Viewer")
         self.log_button.clicked.connect(self.open_log_viewer)
         layout.addWidget(self.log_button)
+
+        button_layout.addStretch()
+        button_layout.addWidget(reset_btn)
+        button_layout.addWidget(save_btn)
 
         layout.addLayout(button_layout)
 
@@ -140,18 +145,26 @@ class SettingsView(QWidget):
         form_layout = QFormLayout()
         self.theme_selector = QComboBox()
         self.theme_selector.addItems(["Light", "Dark", "System"])
+        self.theme_selector.currentIndexChanged.connect(self.apply_theme)  # Apply instantly
         form_layout.addRow("Theme:", self.theme_selector)
-
-        self.accent_color = ColorButton()
-        form_layout.addRow("Accent Color:", self.accent_color)
-
-        self.font_size = QSpinBox()
-        self.font_size.setRange(8, 16)
-        self.font_size.setValue(11)
-        form_layout.addRow("Font Size:", self.font_size)
 
         layout.addLayout(form_layout)
         return tab
+
+    def apply_theme(self):
+        """Applies the selected theme instantly without restarting."""
+        theme = self.theme_selector.currentText()
+        logger.info(f"Applying theme: {theme}")
+
+        if theme == "Dark":
+            self.app_instance.setStyle("Fusion")
+        elif theme == "Light":
+            self.app_instance.setStyle("Windows")
+        else:
+            self.app_instance.setStyle("System")
+
+        self.settings.setValue("theme", theme)
+        self.settings.sync()
 
     def create_performance_settings(self):
         """Creates performance settings UI."""

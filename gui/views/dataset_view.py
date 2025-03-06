@@ -49,6 +49,11 @@ class DatasetView(QWidget):
         btn_hf_export.clicked.connect(self.export_huggingface)
         layout.addWidget(btn_hf_export)
 
+        # Export to Kaggle button
+        btn_kaggle_export = QPushButton("☁️ Export to Kaggle")
+        btn_kaggle_export.clicked.connect(self.export_kaggle)
+        layout.addWidget(btn_kaggle_export)
+
         self.setLayout(layout)
 
     def load_data(self):
@@ -99,5 +104,20 @@ class DatasetView(QWidget):
                 self.status_bar.showMessage(f"Exported to Hugging Face: {repo_name}", 5000)
             except Exception as e:
                 QMessageBox.critical(self, "Export Error", str(e))
+
+    def export_kaggle(self):
+        dataset_slug, ok1 = QInputDialog.getText(self, "Kaggle Dataset Slug", "Enter dataset slug (username/dataset-name):")
+        if not ok1 or not dataset_slug:
+            return
+        title, ok2 = QInputDialog.getText(self, "Kaggle Dataset Title", "Enter dataset title:")
+        if not ok2 or not title:
+            return
+
+        try:
+            self.dataset_manager.export_to_kaggle(dataset_slug, title)
+            QMessageBox.information(self, "Exported", f"Dataset exported to Kaggle: {dataset_slug}")
+            self.status_bar.showMessage(f"Exported to Kaggle: {dataset_slug}", 5000)
+        except Exception as e:
+            QMessageBox.critical(self, "Export Error", str(e))
 
 

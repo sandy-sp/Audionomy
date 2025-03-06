@@ -6,6 +6,7 @@ from datetime import datetime
 import shutil
 import zipfile
 from datasets import Dataset, DatasetDict
+import subprocess
 
 class DatasetManager:
     def __init__(self, dataset_path, create_new=False, columns=None):
@@ -94,3 +95,20 @@ class DatasetManager:
 
         dataset_dict = DatasetDict({split: dataset})
         dataset_dict.push_to_hub(repo_name)
+
+    def export_to_kaggle(self, dataset_slug, title):
+        export_folder = os.path.join(self.dataset_path, "kaggle_export")
+        self.export_dataset(export_folder)
+
+        # Create Kaggle metadata file
+        metadata = {
+            "title": title,
+            "id": dataset_slug,
+            "licenses": [{"name": "CC0-1.0"}]
+        }
+
+        with open(os.path.join(export_folder, "dataset-metadata.json"), 'w') as f:
+            json.dump(metadata, f)
+
+        # Push to Kaggle
+        subprocess.run(["kaggle", "datasets", "create", "-p", export_folder, "-u"], check=True)

@@ -26,11 +26,13 @@ class ExportHandler:
     def execute_export(self):
         """Determines the appropriate export method."""
         try:
+            logger.info(f"Starting dataset export: {self.dataset_path}")
             if self.cloud_service:
                 return self.export_to_cloud()
             else:
                 return self.export_to_local()
         except Exception as e:
+            logger.critical(f"Export failed: {e}")
             return False, f"Export failed: {e}"
 
     def export_to_local(self):
@@ -128,6 +130,7 @@ class ExportHandler:
 
             return True, f"Dataset exported to GitHub repository: {repo_name}"
         except Exception as e:
+            logger.error(f"GitHub export failed: {e}")
             return False, f"GitHub export failed: {e}"
 
     def export_to_kaggle(self):

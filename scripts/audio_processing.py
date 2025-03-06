@@ -20,24 +20,29 @@ class AudioProcessor:
         self.target_format = target_format.lower()
 
     def process_audio_file(self, file_path, output_dir=None):
-        """Processes a single audio file: extracts features, normalizes, and converts format."""
+        """Processes a single audio file."""
         if not os.path.exists(file_path):
-            raise FileNotFoundError(f"Audio file not found: {file_path}")
+            logger.error(f"Audio file not found: {file_path}")
+            return None, None
 
-        # Load audio file
-        audio, sr = librosa.load(file_path, sr=None)
-        metadata = self.extract_metadata(file_path, audio, sr)
+        try:
+            logger.info(f"Processing audio file: {file_path}")
+            audio, sr = librosa.load(file_path, sr=None)
+            metadata = self.extract_metadata(file_path, audio, sr)
 
-        # Normalize audio
-        if self.normalize:
-            audio = self.normalize_audio(audio)
+            if self.normalize:
+                audio = self.normalize_audio(audio)
+                logger.debug(f"Audio normalized: {file_path}")
 
-        # Convert format if needed
-        converted_path = file_path
-        if self.target_format and self.get_file_extension(file_path) != self.target_format:
-            converted_path = self.convert_audio(file_path, self.target_format, output_dir)
+            converted_path = file_path
+            if self.target_format and self.get_file_extension(file_path) != self.target_format:
+                converted_path = self.convert_audio(file_path, self.target_format, output_dir)
+                logger.info(f"Converted {file_path} to {converted_path}")
 
-        return metadata, converted_path
+            return metadata, converted_path
+        except Exception as e:
+            logger.error(f"Error processing {file_path}: {e}")
+            return None, None
 
     def process_audio_batch(self, file_paths, output_dir=None):
         """Processes a batch of audio files."""

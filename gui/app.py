@@ -37,8 +37,8 @@ class AudionomyApp(QApplication):
             self.setStyleSheet(stream.readAll())
 
     def handle_exception(self, exc_type, exc_value, traceback):
-        """Global exception handler to catch and log unexpected errors."""
-        print(f"Unexpected error: {exc_type.__name__}: {exc_value}")
+        """Global exception handler to log unexpected errors."""
+        logger.critical(f"Unexpected error: {exc_type.__name__}: {exc_value}")
 
 
 def main():

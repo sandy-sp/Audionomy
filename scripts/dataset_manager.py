@@ -8,7 +8,7 @@ import uuid
 import datetime
 from pydub import AudioSegment
 import numpy as np
-
+from scripts.logger import logger
 
 class DatasetManager:
     """Manages dataset metadata, audio files, and versioning."""
@@ -191,3 +191,13 @@ class DatasetManager:
                     shutil.copy2(src_path, os.path.join(audio_dest, filename))
 
         return True
+
+    def log_entry(self, metadata):
+        """Logs an entry into the dataset metadata."""
+        try:
+            df = pd.read_csv(self.metadata_csv)
+            df = pd.concat([df, pd.DataFrame([metadata])], ignore_index=True)
+            df.to_csv(self.metadata_csv, index=False)
+            logger.info(f"New entry added to dataset: {metadata['song_title']}")
+        except Exception as e:
+            logger.error(f"Failed to log entry: {e}")

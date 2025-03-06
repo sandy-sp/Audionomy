@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt, QThread, Signal
 import os
 import shutil
 from scripts.audio_processing import AudioProcessor
-
+from scripts.logger import logger
 
 class MetadataProcessingWorker(QThread):
     """Handles batch metadata entry processing in a separate thread."""
@@ -50,8 +50,10 @@ class MetadataProcessingWorker(QThread):
                 progress = int(((i + 1) / total_files) * 100)
                 self.progress_updated.emit(progress)
 
+                logger.info(f"Processed audio file: {file_path}")
+
             except Exception as e:
-                print(f"Error processing {file_path}: {e}")
+                logger.warning(f"Skipping file due to error: {file_path} - {e}")
 
         self.processing_complete.emit(added_count)
 

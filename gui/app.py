@@ -5,7 +5,7 @@ import os
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QFile, QTextStream, QSettings
 from gui.main_window import ModernMainWindow
-
+from scripts.logger import logger
 
 class AudionomyApp(QApplication):
     """Main application class to manage startup, theming, and error handling."""
@@ -38,7 +38,6 @@ class AudionomyApp(QApplication):
     def handle_exception(self, exc_type, exc_value, traceback):
         """Global exception handler to log unexpected errors."""
         logger.critical(f"Unexpected error: {exc_type.__name__}: {exc_value}")
-
 
 def main():
     """Main entry point for launching the Audionomy application."""

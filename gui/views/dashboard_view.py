@@ -6,7 +6,7 @@ import pandas as pd
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
     QScrollArea, QFrame, QGridLayout, QLineEdit, QComboBox, 
-    QDateEdit, QTableWidget, QTableWidgetItem
+    QDateEdit, QMessageBox
 )
 from PySide6.QtCore import Qt, QDate, Signal
 import qtawesome as qta
@@ -162,9 +162,25 @@ class DashboardWidget(QWidget):
         # Load datasets
         self.load_datasets()
 
+    def create_dataset(self):
+        """Opens the create dataset dialog and refreshes dashboard."""
+        logger.info("Opening Create Dataset Dialog")
+        dialog = EnhancedCreateDatasetDialog(self)
+        if dialog.exec():
+            dataset_name, dataset_path, columns = dialog.get_data()
+            full_path = os.path.join(dataset_path, dataset_name)
+            os.makedirs(full_path, exist_ok=True)
+
+            dataset_manager = DatasetManager(full_path, create_new=True, columns=columns)
+            dataset_manager.init_metadata()
+
+            self.status_bar.showMessage(f"Dataset '{dataset_name}' created successfully", 5000)
+            logger.info(f"Dataset created: {dataset_name}")
+            self.load_datasets()
+            self.datasetSelected.emit(full_path)
+
     def load_datasets(self):
         """Loads datasets with filtering and sorting applied."""
-        # Clear existing dataset cards
         for i in reversed(range(self.grid_layout.count())):
             widget = self.grid_layout.itemAt(i).widget()
             if widget:
@@ -180,34 +196,12 @@ class DashboardWidget(QWidget):
             if os.path.isdir(os.path.join(self.datasets_root, item))
         ]
 
-        # Apply filters
-        selected_sort = self.sort_filter.currentText()
-        selected_creation_date = self.creation_date_filter.date().toString("yyyy-MM-dd")
-        selected_modified_date = self.modified_date_filter.date().toString("yyyy-MM-dd")
-
-        filtered_datasets = [
-            (dataset_path, self.get_creation_date(dataset_path), self.get_modified_date(dataset_path))
-            for dataset_path in datasets
-        ]
-
-        # Apply sorting
-        if selected_sort == "Creation Date":
-            filtered_datasets.sort(key=lambda x: x[1], reverse=True)
-        elif selected_sort == "Last Modified":
-            filtered_datasets.sort(key=lambda x: x[2], reverse=True)
-
-        # Populate dataset cards
-        for dataset_path, creation_date, modified_date in filtered_datasets:
+        for dataset_path in datasets:
             card = DatasetCard(dataset_path)
             card.clicked.connect(self.on_dataset_selected)
             self.grid_layout.addWidget(card)
             self.dataset_cards.append((dataset_path, card))
 
-    def get_creation_date(self, path):
-        """Gets the creation date of a dataset directory."""
-        return time.strftime("%Y-%m-%d", time.localtime(os.path.getctime(path)))
-
-    def get_modified_date(self, path):
-        """Gets the last modified date of a dataset directory."""
-        return time.strftime("%Y-%m-%d", time.localtime(os.path.getmtime(path)))
-
+    def on_dataset_selected(self, dataset_path):
+        """Handles dataset selection and emits a signal."""
+        self.datasetSelected.emit(dataset_path)

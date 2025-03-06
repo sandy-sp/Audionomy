@@ -1,14 +1,12 @@
-# gui/components/entry_form.py
-from PySide6.QtWidgets import (QWidget, QFormLayout, QLineEdit, QPushButton,
-                               QFileDialog, QMessageBox)
+from PySide6.QtWidgets import QWidget, QFormLayout, QLineEdit, QPushButton, QFileDialog, QMessageBox
+from pydub.utils import mediainfo
 
 class EntryForm(QWidget):
     def __init__(self, dataset_manager, status_bar):
         super().__init__()
         self.dataset_manager = dataset_manager
         self.status_bar = status_bar
-        self.audio_file_1 = ""
-        self.audio_file_2 = ""
+        self.audio_file_path = ""
         self.setup_ui()
 
     def setup_ui(self):
@@ -17,17 +15,12 @@ class EntryForm(QWidget):
         self.song_title = QLineEdit(self)
         self.style_prompt = QLineEdit(self)
         self.exclude_prompt = QLineEdit(self)
-        self.file_format = QLineEdit(self)
         self.duration = QLineEdit(self)
+        self.file_format = QLineEdit(self)
         self.model_version = QLineEdit(self)
-        self.lyrics = QLineEdit(self)
-        self.persona = QLineEdit(self)
 
-        btn_audio1 = QPushButton("Upload Audio File 1")
-        btn_audio1.clicked.connect(self.upload_audio1)
-
-        btn_audio2 = QPushButton("Upload Audio File 2")
-        btn_audio2.clicked.connect(self.upload_audio2)
+        btn_upload_audio = QPushButton("Upload Audio File")
+        btn_upload_audio.clicked.connect(self.upload_audio)
 
         btn_submit = QPushButton("Submit Entry")
         btn_submit.clicked.connect(self.submit_entry)
@@ -35,40 +28,37 @@ class EntryForm(QWidget):
         layout.addRow("Song Title", self.song_title)
         layout.addRow("Style Prompt", self.style_prompt)
         layout.addRow("Exclude Style Prompt", self.exclude_prompt)
-        layout.addRow("File Format", self.file_format)
-        layout.addRow("Duration (s)", self.duration)
+        layout.addRow("Duration (auto-filled)", self.duration)
+        layout.addRow("File Format (auto-filled)", self.file_format)
         layout.addRow("Model Version", self.model_version)
-        layout.addRow("Lyrics", self.lyrics)
-        layout.addRow("Persona", self.persona)
-        layout.addRow(btn_audio1, btn_audio2)
-        layout.addRow(btn_submit)
+        layout.addRow(btn_upload_audio)
+        layout.addRow(btn_submit := QPushButton("Submit Entry"))
 
-    def upload_audio1(self):
-        file, _ = QFileDialog.getOpenFileName(self, "Upload Audio File 1")
-        if file:
-            self.audio_file_1 = file
-            self.status_bar.showMessage(f"Selected: {file}", 5000)
+        btn_submit.clicked.connect(self.submit_entry)
 
-    def upload_audio2(self):
-        file, _ = QFileDialog.getOpenFileName(self, "Upload Audio File 2")
-        if file:
-            self.audio_file_2 = file
-            self.status_bar.showMessage(f"Selected: {file}", 5000)
+    def upload_audio(self):
+        audio_file, _ = QFileDialog.getOpenFileName(self, "Upload Audio", filter="Audio Files (*.mp3 *.wav)")
+        if audio_file:
+            info = mediainfo(audio_file)
+            duration = float(info.get('duration', 0))
+            file_format = info.get('format_name', 'unknown')
+
+            self.audio_file_path = audio_file
+            self.duration.setText(str(duration))
+            self.file_format.setText(file_format)
 
     def submit_entry(self):
         metadata = {
             "song_title": self.song_title.text(),
             "style_prompt": self.style_prompt.text(),
             "exclude_style_prompt": self.exclude_prompt.text(),
-            "audio_file_1": self.audio_file_1,
-            "audio_file_2": self.audio_file_2,
-            "file_format": self.file_format.text(),
+            "audio_file_1": self.audio_file_path,
             "duration": self.duration.text(),
+            "file_format": self.file_format.text(),
             "model_version": self.model_version.text(),
-            "lyrics": self.lyrics.text(),
-            "persona": self.persona.text(),
-            "uploaded_sample": ""
+            "generation_date": datetime.now().isoformat(),
         }
+
         self.dataset_manager.log_entry(metadata)
-        QMessageBox.information(self, "Success", "Entry added successfully!")
-        self.status_bar.showMessage("Audio entry logged successfully!", 5000)
+        QMessageBox.information(self, "Success", "Entry successfully added!")
+        self.status_bar.showMessage("Entry logged successfully.", 5000)

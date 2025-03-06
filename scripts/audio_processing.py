@@ -7,6 +7,7 @@ import librosa.display
 import soundfile as sf
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
+from PySide6.QtCore import QThread, Signal
 
 
 class AudioProcessor:
@@ -32,10 +33,9 @@ class AudioProcessor:
             audio = self.normalize_audio(audio)
 
         # Convert format if needed
+        converted_path = file_path
         if self.target_format and self.get_file_extension(file_path) != self.target_format:
             converted_path = self.convert_audio(file_path, self.target_format, output_dir)
-        else:
-            converted_path = file_path
 
         return metadata, converted_path
 
@@ -53,7 +53,7 @@ class AudioProcessor:
     def extract_metadata(self, file_path, audio, sr):
         """Extracts audio metadata such as duration, sample rate, and amplitude features."""
         duration = librosa.get_duration(y=audio, sr=sr)
-        rms = np.sqrt(np.mean(audio**2))
+        rms = np.sqrt(np.mean(audio ** 2))
         dBFS = librosa.amplitude_to_db(np.abs(audio), ref=np.max)
         avg_dBFS = np.mean(dBFS)
 
@@ -65,7 +65,7 @@ class AudioProcessor:
             "dBFS": round(avg_dBFS, 2),
             "bit_depth": self.get_bit_depth(file_path),
             "channels": self.get_channels(file_path),
-            "file_format": self.get_file_extension(file_path)
+            "file_format": self.get_file_extension(file_path),
         }
 
     def normalize_audio(self, audio):
@@ -132,16 +132,30 @@ class AudioProcessor:
             return "Unknown"
 
 
-# Example Usage
-if __name__ == "__main__":
-    processor = AudioProcessor(normalize=True, target_format="wav")
+class AudioProcessingWorker(QThread):
+    """Handles batch audio processing in a separate thread."""
+    
+    progress_updated = Signal(int)
+    processing_complete = Signal(list)
 
-    # Process a single file
-    metadata, converted_path = processor.process_audio_file("sample.mp3", output_dir="output")
-    print("Processed:", metadata)
+    def __init__(self, file_paths, output_dir, normalize=True, target_format="wav"):
+        super().__init__()
+        self.file_paths = file_paths
+        self.output_dir = output_dir
+        self.processor = AudioProcessor(normalize=normalize, target_format=target_format)
 
-    # Process a batch of files
-    files = ["sample1.mp3", "sample2.mp3"]
-    batch_results = processor.process_audio_batch(files, output_dir="output")
-    for result in batch_results:
-        print("Batch Processed:", result["metadata"])
+    def run(self):
+        """Processes audio files in batch mode with threading."""
+        results = []
+        total_files = len(self.file_paths)
+
+        for i, file_path in enumerate(self.file_paths):
+            try:
+                metadata, converted_path = self.processor.process_audio_file(file_path, self.output_dir)
+                results.append({"metadata": metadata, "converted_path": converted_path})
+                progress = int(((i + 1) / total_files) * 100)
+                self.progress_updated.emit(progress)
+            except Exception as e:
+                print(f"Error processing {file_path}: {e}")
+
+        self.processing_complete.emit(results)

@@ -1,5 +1,8 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox
-from components.create_dataset_dialog import CreateDatasetDialog
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox
+)
+from PySide6.QtCore import Qt  # ✅ Fix: added missing import
+from components.dialogs import CreateDatasetDialog
 from scripts.dataset_manager import DatasetManager
 import os
 
@@ -16,11 +19,11 @@ class HomeView(QWidget):
 
         layout.addWidget(QLabel("<h2>🎧 Audionomy Dataset Manager</h2>"))
 
-        btn_create = QPushButton("Create Dataset")
+        btn_create = QPushButton("📁 Create New Dataset")
         btn_create.clicked.connect(self.create_dataset)
         layout.addWidget(btn_create)
 
-        btn_open = QPushButton("Open Existing Dataset")
+        btn_open = QPushButton("📂 Open Existing Dataset")
         btn_open.clicked.connect(self.open_dataset)
         layout.addWidget(btn_open)
 
@@ -32,11 +35,13 @@ class HomeView(QWidget):
             os.makedirs(full_path, exist_ok=True)
 
             self.dataset_manager = DatasetManager(full_path)
-            self.dataset_manager.create_template()
-            self.status_bar.showMessage(f"Dataset '{dataset_name}' created at {full_path}", 5000)
+            self.dataset_manager.create_template()  # Create a template
+            self.dataset_manager.init_metadata()
+            QMessageBox.information(self, "Success", f"Dataset created at {full_path}")
+            self.status_bar.showMessage(f"Dataset created at {full_path}", 5000)
 
     def open_dataset(self):
-        path = QFileDialog.getExistingDirectory(self, "Select Dataset Folder")
+        path = QFileDialog.getExistingDirectory(self, "Open Dataset")
         if path:
             template_files = [f for f in os.listdir(path) if f.endswith(".template")]
             if not template_files:
@@ -44,4 +49,5 @@ class HomeView(QWidget):
                 return
 
             self.dataset_manager = DatasetManager(path)
-            self.status_bar.showMessage(f"Loaded dataset from {path}", 5000)
+            QMessageBox.information(self, "Loaded", f"Dataset loaded from {path}")
+            self.status_bar.showMessage(f"Dataset loaded from {path}", 5000)

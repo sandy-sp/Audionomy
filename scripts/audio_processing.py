@@ -7,11 +7,17 @@ import librosa.display
 import soundfile as sf
 import matplotlib.pyplot as plt
 from pydub import AudioSegment
+import essentia.standard as es
+import mutagen
+from mutagen.mp3 import MP3
+from mutagen.flac import FLAC
+from mutagen.oggvorbis import OggVorbis
 from PySide6.QtCore import QThread, Signal
+from scripts.logger import logger
 
 
 class AudioProcessor:
-    """Handles audio feature extraction, normalization, and format conversion."""
+    """Handles audio feature extraction, normalization, format conversion, and visualization."""
 
     SUPPORTED_FORMATS = ["wav", "mp3", "flac", "ogg"]
 
@@ -20,7 +26,7 @@ class AudioProcessor:
         self.target_format = target_format.lower()
 
     def process_audio_file(self, file_path, output_dir=None):
-        """Processes a single audio file."""
+        """Processes a single audio file: extracts features, normalizes, and converts format."""
         if not os.path.exists(file_path):
             logger.error(f"Audio file not found: {file_path}")
             return None, None
@@ -44,51 +50,66 @@ class AudioProcessor:
             logger.error(f"Error processing {file_path}: {e}")
             return None, None
 
-    def process_audio_batch(self, file_paths, output_dir=None):
-        """Processes a batch of audio files."""
-        results = []
-        for file_path in file_paths:
-            try:
-                metadata, converted_path = self.process_audio_file(file_path, output_dir)
-                results.append({"metadata": metadata, "converted_path": converted_path})
-            except Exception as e:
-                print(f"Error processing {file_path}: {e}")
-        return results
-
     def extract_metadata(self, file_path, audio, sr):
-        """Extracts audio metadata such as duration, sample rate, and amplitude features."""
+        """Extracts audio metadata including pitch, tempo, loudness, and tags."""
         duration = librosa.get_duration(y=audio, sr=sr)
-        rms = np.sqrt(np.mean(audio ** 2))
-        dBFS = librosa.amplitude_to_db(np.abs(audio), ref=np.max)
-        avg_dBFS = np.mean(dBFS)
+        tempo, _ = librosa.beat.beat_track(y=audio, sr=sr)
+        pitch = librosa.yin(audio, fmin=50, fmax=5000, sr=sr)
+        avg_pitch = np.mean(pitch) if len(pitch) > 0 else None
+
+        # Extract metadata using Mutagen
+        mutagen_data = self.extract_metadata_tags(file_path)
+
+        # Extract loudness using Essentia
+        loudness = self.extract_loudness(file_path)
 
         return {
             "filename": os.path.basename(file_path),
             "duration": round(duration, 2),
             "sample_rate": sr,
-            "rms": round(rms, 4),
-            "dBFS": round(avg_dBFS, 2),
+            "tempo": round(tempo, 2),
+            "pitch": round(avg_pitch, 2) if avg_pitch else None,
             "bit_depth": self.get_bit_depth(file_path),
             "channels": self.get_channels(file_path),
             "file_format": self.get_file_extension(file_path),
+            "loudness": round(loudness, 2) if loudness else None,
+            "artist": mutagen_data.get("artist", ""),
+            "album": mutagen_data.get("album", ""),
+            "title": mutagen_data.get("title", ""),
         }
 
-    def normalize_audio(self, audio):
-        """Normalizes an audio signal to a target peak level."""
-        return librosa.util.normalize(audio)
+    def extract_metadata_tags(self, file_path):
+        """Extracts metadata tags (artist, album, title) using Mutagen."""
+        try:
+            if file_path.endswith(".mp3"):
+                audio = MP3(file_path)
+            elif file_path.endswith(".flac"):
+                audio = FLAC(file_path)
+            elif file_path.endswith(".ogg"):
+                audio = OggVorbis(file_path)
+            else:
+                return {}
 
-    def convert_audio(self, file_path, target_format, output_dir=None):
-        """Converts audio to the specified format."""
-        if target_format not in self.SUPPORTED_FORMATS:
-            raise ValueError(f"Unsupported format: {target_format}")
+            return {
+                "artist": audio.get("TPE1", [""])[0],
+                "album": audio.get("TALB", [""])[0],
+                "title": audio.get("TIT2", [""])[0],
+            }
+        except Exception as e:
+            logger.warning(f"Failed to extract metadata tags for {file_path}: {e}")
+            return {}
 
-        output_dir = output_dir or os.path.dirname(file_path)
-        output_filename = f"{os.path.splitext(os.path.basename(file_path))[0]}.{target_format}"
-        output_path = os.path.join(output_dir, output_filename)
-
-        audio = AudioSegment.from_file(file_path)
-        audio.export(output_path, format=target_format)
-        return output_path
+    def extract_loudness(self, file_path):
+        """Extracts loudness level using Essentia."""
+        try:
+            audio_loader = es.MonoLoader(filename=file_path)
+            audio = audio_loader()
+            loudness_extractor = es.LoudnessEBUR128()
+            loudness = loudness_extractor(audio)
+            return loudness[0]  # Overall loudness in LUFS
+        except Exception as e:
+            logger.warning(f"Failed to extract loudness for {file_path}: {e}")
+            return None
 
     def generate_waveform(self, file_path, output_path):
         """Generates and saves a waveform plot of the audio file."""
@@ -114,32 +135,27 @@ class AudioProcessor:
         plt.savefig(output_path)
         plt.close()
 
-    @staticmethod
-    def get_file_extension(file_path):
-        """Returns the file extension (format) of the given audio file."""
-        return os.path.splitext(file_path)[1].lower().replace(".", "")
+    def normalize_audio(self, audio):
+        """Normalizes an audio signal to a target peak level."""
+        return librosa.util.normalize(audio)
 
-    @staticmethod
-    def get_bit_depth(file_path):
-        """Returns the bit depth of the audio file."""
-        try:
-            info = sf.info(file_path)
-            return info.subtype_info.split(" ")[0] if info.subtype_info else "Unknown"
-        except:
-            return "Unknown"
+    def convert_audio(self, file_path, target_format, output_dir=None):
+        """Converts audio to the specified format."""
+        if target_format not in self.SUPPORTED_FORMATS:
+            raise ValueError(f"Unsupported format: {target_format}")
 
-    @staticmethod
-    def get_channels(file_path):
-        """Returns the number of audio channels."""
-        try:
-            return AudioSegment.from_file(file_path).channels
-        except:
-            return "Unknown"
+        output_dir = output_dir or os.path.dirname(file_path)
+        output_filename = f"{os.path.splitext(os.path.basename(file_path))[0]}.{target_format}"
+        output_path = os.path.join(output_dir, output_filename)
+
+        audio = AudioSegment.from_file(file_path)
+        audio.export(output_path, format=target_format)
+        return output_path
 
 
 class AudioProcessingWorker(QThread):
     """Handles batch audio processing in a separate thread."""
-    
+
     progress_updated = Signal(int)
     processing_complete = Signal(list)
 
@@ -161,6 +177,6 @@ class AudioProcessingWorker(QThread):
                 progress = int(((i + 1) / total_files) * 100)
                 self.progress_updated.emit(progress)
             except Exception as e:
-                print(f"Error processing {file_path}: {e}")
+                logger.warning(f"Skipping file due to error: {file_path} - {e}")
 
         self.processing_complete.emit(results)

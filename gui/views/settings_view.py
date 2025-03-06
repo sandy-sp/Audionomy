@@ -10,7 +10,7 @@ from PySide6.QtGui import QColor
 import qtawesome as qta
 import os
 import json
-
+from gui.views.log_viewer import LogViewer
 
 class ColorButton(QPushButton):
     """Button that allows users to select a custom color."""
@@ -79,15 +79,27 @@ class SettingsView(QWidget):
         reset_btn = QPushButton("Reset to Defaults")
         reset_btn.clicked.connect(self.reset_settings)
 
+        # Save Button
         save_btn = QPushButton(qta.icon("fa5s.save"), "Save Settings")
         save_btn.setObjectName("primary-button")
         save_btn.clicked.connect(self.save_settings)
 
+        # Add buttons to layout
         button_layout.addStretch()
         button_layout.addWidget(reset_btn)
         button_layout.addWidget(save_btn)
 
+        # Log Viewer Button
+        self.log_button = QPushButton("📜 Open Log Viewer")
+        self.log_button.clicked.connect(self.open_log_viewer)
+        layout.addWidget(self.log_button)
+
         layout.addLayout(button_layout)
+
+    def open_log_viewer(self):
+        """Opens the real-time log viewer."""
+        self.log_viewer = LogViewer()
+        self.log_viewer.show()
 
     def create_general_settings(self):
         """Creates general settings UI."""

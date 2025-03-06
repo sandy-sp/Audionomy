@@ -5,6 +5,7 @@ from PySide6.QtWidgets import (
 from components.entry_form import EntryForm
 from scripts.dataset_manager import DatasetManager
 import pandas as pd
+import os 
 
 class DatasetView(QWidget):
     def __init__(self, dataset_manager: DatasetManager, status_bar):

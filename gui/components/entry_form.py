@@ -2,12 +2,58 @@
 
 from PySide6.QtWidgets import (
     QWidget, QFormLayout, QLineEdit, QPushButton, QFileDialog,
-    QMessageBox, QListWidget, QVBoxLayout, QLabel, QHBoxLayout
+    QMessageBox, QListWidget, QVBoxLayout, QLabel, QHBoxLayout, QProgressBar
 )
-from PySide6.QtCore import Qt
-from scripts.audio_processing import AudioProcessor
+from PySide6.QtCore import Qt, QThread, Signal
 import os
 import shutil
+from scripts.audio_processing import AudioProcessor
+
+
+class MetadataProcessingWorker(QThread):
+    """Handles batch metadata entry processing in a separate thread."""
+
+    progress_updated = Signal(int)
+    processing_complete = Signal(int)
+
+    def __init__(self, dataset_manager, file_paths, output_dir):
+        super().__init__()
+        self.dataset_manager = dataset_manager
+        self.file_paths = file_paths
+        self.output_dir = output_dir
+        self.processor = AudioProcessor(normalize=True, target_format="wav")
+
+    def run(self):
+        """Processes multiple metadata entries in batch mode."""
+        total_files = len(self.file_paths)
+        added_count = 0
+
+        for i, file_path in enumerate(self.file_paths):
+            try:
+                metadata, converted_path = self.processor.process_audio_file(file_path, self.output_dir)
+
+                # Copy converted file to dataset directory
+                audio_dest = os.path.join(self.output_dir, os.path.basename(converted_path))
+                shutil.copy2(converted_path, audio_dest)
+
+                # Create metadata entry
+                entry = {
+                    "song_title": os.path.splitext(os.path.basename(file_path))[0],
+                    "audio_file": os.path.basename(audio_dest),
+                    "duration": metadata.get("duration", ""),
+                    "file_format": metadata.get("file_format", ""),
+                    "generation_date": metadata.get("generation_date", ""),
+                }
+                self.dataset_manager.log_entry(entry)
+
+                added_count += 1
+                progress = int(((i + 1) / total_files) * 100)
+                self.progress_updated.emit(progress)
+
+            except Exception as e:
+                print(f"Error processing {file_path}: {e}")
+
+        self.processing_complete.emit(added_count)
 
 
 class EntryForm(QWidget):
@@ -18,8 +64,8 @@ class EntryForm(QWidget):
         self.dataset_manager = dataset_manager
         self.status_bar = status_bar
         self.refresh_callback = refresh_callback
-        self.audio_processor = AudioProcessor(normalize=True, target_format="wav")
         self.audio_files = []
+        self.processing_worker = None
         self.setup_ui()
 
     def setup_ui(self):
@@ -62,6 +108,11 @@ class EntryForm(QWidget):
 
         layout.addLayout(form_layout)
 
+        # Progress Bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setVisible(False)
+        layout.addWidget(self.progress_bar)
+
         # Buttons
         btn_submit = QPushButton("✅ Submit Entry")
         btn_submit.clicked.connect(self.submit_entries)
@@ -92,7 +143,7 @@ class EntryForm(QWidget):
     def auto_fill_metadata(self):
         """Auto-fills metadata for the first selected file."""
         if self.audio_files:
-            metadata, _ = self.audio_processor.process_audio_file(self.audio_files[0])
+            metadata, _ = AudioProcessor().process_audio_file(self.audio_files[0])
             self.duration.setText(str(metadata.get("duration", "")))
             self.file_format.setText(metadata.get("file_format", "").upper())
 
@@ -108,34 +159,22 @@ class EntryForm(QWidget):
         self.audio_files = []
 
     def submit_entries(self):
-        """Submits multiple audio entries with metadata."""
+        """Starts the threaded batch processing of metadata entries."""
         if not self.audio_files:
             QMessageBox.warning(self, "Warning", "No audio files selected!")
             return
 
-        added_count = 0
-        for file in self.audio_files:
-            metadata, converted_path = self.audio_processor.process_audio_file(file, output_dir=self.dataset_manager.audio_dir)
+        self.progress_bar.setVisible(True)
+        self.progress_bar.setValue(0)
 
-            # Ensure the file is copied to the dataset directory
-            audio_dest = os.path.join(self.dataset_manager.audio_dir, os.path.basename(converted_path))
-            shutil.copy2(converted_path, audio_dest)
+        self.processing_worker = MetadataProcessingWorker(self.dataset_manager, self.audio_files, self.dataset_manager.audio_dir)
+        self.processing_worker.progress_updated.connect(self.progress_bar.setValue)
+        self.processing_worker.processing_complete.connect(self.on_processing_complete)
+        self.processing_worker.start()
 
-            # Create metadata entry
-            entry = {
-                "song_title": self.song_title.text() or os.path.splitext(os.path.basename(file))[0],
-                "style_prompt": self.style_prompt.text(),
-                "exclude_style_prompt": self.exclude_prompt.text(),
-                "audio_file": os.path.basename(audio_dest),
-                "duration": metadata.get("duration", ""),
-                "file_format": metadata.get("file_format", ""),
-                "model_version": self.model_version.text(),
-                "generation_date": metadata.get("generation_date", ""),
-            }
-
-            self.dataset_manager.log_entry(entry)
-            added_count += 1
-
+    def on_processing_complete(self, added_count):
+        """Handles completion of the batch processing task."""
+        self.progress_bar.setVisible(False)
         self.status_bar.showMessage(f"{added_count} audio entries added.", 5000)
         self.refresh_callback()
         self.close()

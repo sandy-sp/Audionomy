@@ -99,18 +99,6 @@ class AudioProcessor:
             logger.warning(f"Failed to extract metadata tags for {file_path}: {e}")
             return {}
 
-    def extract_loudness(self, file_path):
-        """Extracts loudness level using Essentia."""
-        try:
-            audio_loader = es.MonoLoader(filename=file_path)
-            audio = audio_loader()
-            loudness_extractor = es.LoudnessEBUR128()
-            loudness = loudness_extractor(audio)
-            return loudness[0]  # Overall loudness in LUFS
-        except Exception as e:
-            logger.warning(f"Failed to extract loudness for {file_path}: {e}")
-            return None
-
     def generate_waveform(self, file_path, output_path):
         """Generates and saves a waveform plot of the audio file."""
         audio, sr = librosa.load(file_path, sr=None)

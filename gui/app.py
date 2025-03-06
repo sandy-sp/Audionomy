@@ -1,17 +1,25 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow
+from PySide6.QtWidgets import QApplication, QMainWindow, QStatusBar
+from PySide6.QtGui import QIcon
+import qtawesome as qta
 from views.home import HomeView
 
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.home_view = HomeView()
+        self.setWindowTitle("Audionomy")
+        self.setWindowIcon(qta.icon('fa5s.music'))
+
+        self.status_bar = QStatusBar()
+        self.setStatusBar(self.status_bar)
+        self.status_bar.showMessage("Ready")
+
+        self.home_view = HomeView(self.status_bar)
         self.setCentralWidget(self.home_view)
-        self.setWindowTitle("Audionomy - Audio Dataset Manager")
-        self.resize(1024, 768)
+        self.resize(1200, 800)
 
 if __name__ == "__main__":
-    app = QApplication([])
+    app = QApplication(sys.argv)
     window = MainWindow()
     window.show()
-    app.exec()
+    sys.exit(app.exec())

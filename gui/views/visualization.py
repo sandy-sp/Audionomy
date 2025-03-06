@@ -1,38 +1,42 @@
+import os
+import pandas as pd
 import plotly.express as px
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton
+import tempfile
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QPushButton, QMessageBox
 from PySide6.QtWebEngineWidgets import QWebEngineView
 from scripts.dataset_manager import DatasetManager
-import tempfile
-import pandas as pd
 
 class VisualizationWidget(QWidget):
     def __init__(self, dataset_manager: DatasetManager):
         super().__init__()
         self.dataset_manager = dataset_manager
+        self.setWindowTitle("Dataset Visualization")
+        self.resize(900, 600)
         self.setup_ui()
 
     def setup_ui(self):
-        layout = QVBoxLayout(self)
+        layout = QVBoxLayout()
 
-        self.view = QWebEngineView(self)
-        btn_refresh = QPushButton("Refresh Visualization")
-        btn_refresh.clicked.connect(self.load_visualization)
+        self.web_view = QWebEngineView()
+        refresh_btn = QPushButton("🔄 Refresh Visualization")
+        refresh_btn.clicked.connect(self.load_visualization)
 
-        layout.addWidget(self.view)
-        layout.addWidget(btn_refresh)
+        layout.addWidget(self.web_view)
+        layout.addWidget(refresh_btn)
 
+        self.setLayout(layout)
         self.load_visualization()
 
     def load_visualization(self):
         df = pd.read_csv(self.dataset_manager.metadata_csv)
         if df.empty:
+            QMessageBox.warning(self, "No Data", "The dataset is currently empty.")
             return
 
         fig = px.bar(
             df, x='song_title', y='duration', color='style_prompt',
-            title="Audionomy Dataset Visualization"
+            title="Audionomy Dataset: Audio Duration by Song Title"
         )
-
-        with tempfile.NamedTemporaryFile('w', delete=False, suffix='.html') as f:
-            fig.write_html(f.name)
-            self.view.load(f'file://{f.name}')
+        temp_html = tempfile.NamedTemporaryFile(delete=False, suffix='.html')
+        fig.write_html(temp_html.name)
+        self.web_view.load(f"file://{temp_html.name}")

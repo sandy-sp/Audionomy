@@ -76,11 +76,12 @@ class DatasetView(QWidget):
 
     def visualize_dataset(self):
         from gui.views.visualization import VisualizationWidget
-        vis_widget = VisualizationWidget(self.dataset_manager)
-        vis_widget.show()
+        self.vis_widget = VisualizationWidget(self.dataset_manager)
+        self.vis_widget.show()
 
     def export_dataset(self):
         export_path = QFileDialog.getExistingDirectory(self, "Export Dataset")
         if export_path:
             self.dataset_manager.export_dataset(export_path)
-            QMessageBox.information(self, "Exported", f"Dataset exported to {export_path}")
+            QMessageBox.information(self, "Export Complete", f"Dataset exported to {export_path}")
+

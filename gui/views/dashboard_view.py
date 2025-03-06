@@ -1,16 +1,20 @@
 # gui/views/dashboard_view.py
 
+import os
+import time
+import pandas as pd
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, 
-    QScrollArea, QFrame, QGridLayout, QLineEdit
+    QScrollArea, QFrame, QGridLayout, QLineEdit, QComboBox, 
+    QDateEdit, QTableWidget, QTableWidgetItem
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, QDate, Signal
 import qtawesome as qta
-import os
-import pandas as pd
 
 from gui.components.dialogs import EnhancedCreateDatasetDialog
 from scripts.dataset_manager import DatasetManager
+from scripts.logger import logger
+
 
 class DatasetCard(QFrame):
     """UI representation of an individual dataset."""
@@ -80,7 +84,7 @@ class DatasetCard(QFrame):
 
 
 class DashboardWidget(QWidget):
-    """Main dashboard displaying all datasets with search & filtering."""
+    """Main dashboard displaying all datasets with search, sorting, and filtering options."""
     datasetSelected = Signal(str)
 
     def __init__(self, status_bar, parent=None):
@@ -104,7 +108,7 @@ class DashboardWidget(QWidget):
         # Search Bar
         self.search_input = QLineEdit()
         self.search_input.setPlaceholderText("🔍 Search datasets...")
-        self.search_input.textChanged.connect(self.filter_datasets)
+        self.search_input.textChanged.connect(self.load_datasets)
         header_layout.addWidget(self.search_input)
 
         # Create Dataset Button
@@ -114,6 +118,35 @@ class DashboardWidget(QWidget):
         header_layout.addWidget(create_btn)
 
         layout.addLayout(header_layout)
+
+        # Filters Layout
+        filters_layout = QHBoxLayout()
+
+        # Sort By Filter
+        self.sort_filter = QComboBox()
+        self.sort_filter.addItems(["Sort by...", "Creation Date", "Last Modified"])
+        self.sort_filter.currentIndexChanged.connect(self.load_datasets)
+        filters_layout.addWidget(self.sort_filter)
+
+        # Creation Date Filter
+        self.creation_date_filter = QDateEdit()
+        self.creation_date_filter.setCalendarPopup(True)
+        self.creation_date_filter.setDisplayFormat("yyyy-MM-dd")
+        self.creation_date_filter.setDate(QDate.currentDate())
+        self.creation_date_filter.dateChanged.connect(self.load_datasets)
+        filters_layout.addWidget(QLabel("Filter by Creation Date:"))
+        filters_layout.addWidget(self.creation_date_filter)
+
+        # Last Modified Date Filter
+        self.modified_date_filter = QDateEdit()
+        self.modified_date_filter.setCalendarPopup(True)
+        self.modified_date_filter.setDisplayFormat("yyyy-MM-dd")
+        self.modified_date_filter.setDate(QDate.currentDate())
+        self.modified_date_filter.dateChanged.connect(self.load_datasets)
+        filters_layout.addWidget(QLabel("Filter by Last Modified Date:"))
+        filters_layout.addWidget(self.modified_date_filter)
+
+        layout.addLayout(filters_layout)
 
         # Dataset Grid with Scroll Area
         self.scroll_area = QScrollArea()
@@ -130,7 +163,7 @@ class DashboardWidget(QWidget):
         self.load_datasets()
 
     def load_datasets(self):
-        """Loads available datasets and displays them in the UI."""
+        """Loads datasets with filtering and sorting applied."""
         # Clear existing dataset cards
         for i in reversed(range(self.grid_layout.count())):
             widget = self.grid_layout.itemAt(i).widget()
@@ -144,54 +177,37 @@ class DashboardWidget(QWidget):
         datasets = [
             os.path.join(self.datasets_root, item)
             for item in os.listdir(self.datasets_root)
-            if os.path.isdir(os.path.join(self.datasets_root, item)) and any(
-                f.endswith('.template') for f in os.listdir(os.path.join(self.datasets_root, item))
-            )
+            if os.path.isdir(os.path.join(self.datasets_root, item))
         ]
 
+        # Apply filters
+        selected_sort = self.sort_filter.currentText()
+        selected_creation_date = self.creation_date_filter.date().toString("yyyy-MM-dd")
+        selected_modified_date = self.modified_date_filter.date().toString("yyyy-MM-dd")
+
+        filtered_datasets = [
+            (dataset_path, self.get_creation_date(dataset_path), self.get_modified_date(dataset_path))
+            for dataset_path in datasets
+        ]
+
+        # Apply sorting
+        if selected_sort == "Creation Date":
+            filtered_datasets.sort(key=lambda x: x[1], reverse=True)
+        elif selected_sort == "Last Modified":
+            filtered_datasets.sort(key=lambda x: x[2], reverse=True)
+
         # Populate dataset cards
-        row, col = 0, 0
-        max_cols = 3
-        for dataset_path in datasets:
+        for dataset_path, creation_date, modified_date in filtered_datasets:
             card = DatasetCard(dataset_path)
             card.clicked.connect(self.on_dataset_selected)
-            self.grid_layout.addWidget(card, row, col)
-            self.dataset_cards.append((dataset_path, card))  # Store for filtering
+            self.grid_layout.addWidget(card)
+            self.dataset_cards.append((dataset_path, card))
 
-            col += 1
-            if col >= max_cols:
-                col = 0
-                row += 1
+    def get_creation_date(self, path):
+        """Gets the creation date of a dataset directory."""
+        return time.strftime("%Y-%m-%d", time.localtime(os.path.getctime(path)))
 
-        # Empty state message if no datasets exist
-        if not datasets:
-            empty_label = QLabel("No datasets found. Create your first dataset to get started!")
-            empty_label.setAlignment(Qt.AlignCenter)
-            empty_label.setObjectName("empty-state")
-            self.grid_layout.addWidget(empty_label, 0, 0, 1, max_cols)
+    def get_modified_date(self, path):
+        """Gets the last modified date of a dataset directory."""
+        return time.strftime("%Y-%m-%d", time.localtime(os.path.getmtime(path)))
 
-    def filter_datasets(self):
-        """Filters dataset cards based on search input."""
-        search_text = self.search_input.text().strip().lower()
-        for dataset_path, card in self.dataset_cards:
-            dataset_name = os.path.basename(dataset_path).lower()
-            card.setVisible(search_text in dataset_name)
-
-    def on_dataset_selected(self, dataset_path):
-        """Handles dataset selection and emits a signal."""
-        self.datasetSelected.emit(dataset_path)
-
-    def create_dataset(self):
-        """Opens the create dataset dialog and refreshes dashboard."""
-        dialog = EnhancedCreateDatasetDialog(self)
-        if dialog.exec():
-            dataset_name, dataset_path, columns = dialog.get_data()
-            full_path = os.path.join(dataset_path, dataset_name)
-            os.makedirs(full_path, exist_ok=True)
-
-            dataset_manager = DatasetManager(full_path, create_new=True, columns=columns)
-            dataset_manager.init_metadata()
-
-            self.status_bar.showMessage(f"Dataset '{dataset_name}' created successfully", 5000)
-            self.load_datasets()
-            self.datasetSelected.emit(full_path)

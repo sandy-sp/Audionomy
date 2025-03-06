@@ -2,7 +2,7 @@
 
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QPlainTextEdit, QPushButton, QLabel,
-    QHBoxLayout, QComboBox
+    QHBoxLayout, QComboBox, QLineEdit
 )
 from PySide6.QtCore import QFileSystemWatcher, Qt
 import os
@@ -12,7 +12,7 @@ LOG_FILE = "logs/audionomy.log"
 
 
 class LogViewer(QWidget):
-    """A real-time log viewer for monitoring Audionomy logs with filtering."""
+    """A real-time log viewer for monitoring Audionomy logs with filtering and search."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -39,6 +39,12 @@ class LogViewer(QWidget):
         self.log_filter.currentIndexChanged.connect(self.load_logs)
         header_layout.addWidget(self.log_filter)
 
+        # Search Bar
+        self.search_input = QLineEdit()
+        self.search_input.setPlaceholderText("🔎 Search logs...")
+        self.search_input.textChanged.connect(self.load_logs)
+        header_layout.addWidget(self.search_input)
+
         # Clear Logs Button
         self.clear_button = QPushButton("🗑 Clear Logs")
         self.clear_button.clicked.connect(self.clear_logs)
@@ -62,43 +68,30 @@ class LogViewer(QWidget):
         self.log_watcher.fileChanged.connect(self.load_logs)
 
     def load_logs(self):
-        """Loads and filters logs, applying color coding for log levels."""
+        """Loads and filters the latest log file contents with search functionality."""
         if not os.path.exists(LOG_FILE):
             self.log_display.setPlainText("No logs found.")
             return
 
         selected_level = self.log_filter.currentText()
+        search_query = self.search_input.text().strip().lower()
 
         with open(LOG_FILE, "r") as f:
             logs = f.readlines()
 
-        filtered_logs = self.filter_logs(logs, selected_level)
+        filtered_logs = self.filter_logs(logs, selected_level, search_query)
+        self.log_display.setPlainText("".join(filtered_logs))
 
-        # Apply color coding
-        formatted_logs = ""
-        for log in filtered_logs:
-            if " - ERROR - " in log:
-                log = f'<span style="color:red;">{log}</span>'
-            elif " - WARNING - " in log:
-                log = f'<span style="color:orange;">{log}</span>'
-            elif " - INFO - " in log:
-                log = f'<span style="color:blue;">{log}</span>'
-            elif " - CRITICAL - " in log:
-                log = f'<span style="color:darkred; font-weight:bold;">{log}</span>'
-
-            formatted_logs += log
-
-        self.log_display.setHtml(f"<pre>{formatted_logs}</pre>")
-
-    def filter_logs(self, logs, level):
-        """Filters logs based on the selected log level."""
-        if level == "All":
-            return logs
+    def filter_logs(self, logs, level, search_query):
+        """Filters logs based on the selected log level and search query."""
+        if level == "All" and not search_query:
+            return logs  # No filtering needed
 
         filtered_logs = []
-        pattern = re.compile(f" - {level} - ")  # Example: " - ERROR - "
+        level_pattern = re.compile(f" - {level} - ") if level != "All" else None
+
         for log in logs:
-            if pattern.search(log):
+            if (not level_pattern or level_pattern.search(log)) and (not search_query or search_query in log.lower()):
                 filtered_logs.append(log)
 
         return filtered_logs

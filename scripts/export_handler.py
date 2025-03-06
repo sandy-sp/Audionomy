@@ -6,12 +6,16 @@ import json
 import shutil
 import zipfile
 import subprocess
+import time
 from datasets import Dataset, DatasetDict
 from PySide6.QtCore import QThread, Signal
+from scripts.logger import logger
+
+MAX_RETRIES = 3  # Maximum number of retries for failed cloud uploads
 
 
 class ExportHandler:
-    """Handles dataset export to local and cloud destinations."""
+    """Handles dataset export to local and cloud destinations with retry logic."""
 
     def __init__(self, dataset_path, export_options):
         self.dataset_path = dataset_path
@@ -80,15 +84,25 @@ class ExportHandler:
                         zipf.write(file_path, os.path.join("audio", filename))
 
     def export_to_cloud(self):
-        """Exports dataset to the selected cloud service."""
+        """Exports dataset to the selected cloud service with retry mechanism."""
         if self.cloud_service == "Hugging Face":
-            return self.export_to_huggingface()
+            return self._retry_upload(self.export_to_huggingface)
         elif self.cloud_service == "GitHub":
-            return self.export_to_github()
+            return self._retry_upload(self.export_to_github)
         elif self.cloud_service == "Kaggle":
-            return self.export_to_kaggle()
+            return self._retry_upload(self.export_to_kaggle)
         else:
             return False, "Invalid cloud service selection."
+
+    def _retry_upload(self, upload_function):
+        """Retries the upload function up to MAX_RETRIES times."""
+        for attempt in range(1, MAX_RETRIES + 1):
+            success, message = upload_function()
+            if success:
+                return success, message
+            logger.warning(f"Upload failed (Attempt {attempt}/{MAX_RETRIES}): {message}")
+            time.sleep(5)  # Wait before retrying
+        return False, f"Upload failed after {MAX_RETRIES} attempts."
 
     def export_to_huggingface(self):
         """Exports dataset to Hugging Face Datasets."""
@@ -102,8 +116,10 @@ class ExportHandler:
 
         try:
             dataset_dict.push_to_hub(repo_name)
+            logger.info(f"Dataset exported to Hugging Face repository: {repo_name}")
             return True, f"Dataset exported to Hugging Face repository: {repo_name}"
         except Exception as e:
+            logger.error(f"Hugging Face export failed: {e}")
             return False, f"Hugging Face export failed: {e}"
 
     def export_to_github(self):
@@ -128,6 +144,7 @@ class ExportHandler:
             subprocess.run(["git", "branch", "-M", "main"], cwd=export_folder, check=True)
             subprocess.run(["git", "push", "-u", "origin", "main"], cwd=export_folder, check=True)
 
+            logger.info(f"Dataset exported to GitHub repository: {repo_name}")
             return True, f"Dataset exported to GitHub repository: {repo_name}"
         except Exception as e:
             logger.error(f"GitHub export failed: {e}")
@@ -161,6 +178,8 @@ class ExportHandler:
         # Push to Kaggle
         try:
             subprocess.run(["kaggle", "datasets", "create", "-p", export_folder, "-u"], check=True)
+            logger.info(f"Dataset exported to Kaggle: {dataset_slug}")
             return True, f"Dataset exported to Kaggle: {dataset_slug}"
         except Exception as e:
+            logger.error(f"Kaggle export failed: {e}")
             return False, f"Kaggle export failed: {e}"

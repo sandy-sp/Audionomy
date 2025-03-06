@@ -7,6 +7,7 @@ import shutil
 import zipfile
 import subprocess
 from datasets import Dataset, DatasetDict
+from PySide6.QtCore import QThread, Signal
 
 
 class ExportHandler:

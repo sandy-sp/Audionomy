@@ -30,15 +30,19 @@ class HomeView(QWidget):
     def create_dataset(self):
         dialog = CreateDatasetDialog(self)
         if dialog.exec():
-            dataset_name, dataset_path = dialog.get_data()
+            dataset_name = dialog.name_input.text()
+            dataset_path = dialog.path_input.text()
+            columns = [dialog.columns_list.item(i).text() for i in range(dialog.columns_list.count())]
+
             full_path = os.path.join(dataset_path, dataset_name)
             os.makedirs(full_path, exist_ok=True)
 
             self.dataset_manager = DatasetManager(full_path)
-            self.dataset_manager.create_template()  # Create a template
+            self.dataset_manager.create_template(columns=columns)
             self.dataset_manager.init_metadata()
-            QMessageBox.information(self, "Success", f"Dataset created at {full_path}")
-            self.status_bar.showMessage(f"Dataset created at {full_path}", 5000)
+
+            QMessageBox.information(self, "Success", f"Dataset '{dataset_name}' created at {full_path}")
+            self.status_bar.showMessage(f"Dataset '{dataset_name}' created", 5000)
 
     def open_dataset(self):
         path = QFileDialog.getExistingDirectory(self, "Open Dataset")

@@ -7,6 +7,7 @@ from scripts.dataset_manager import DatasetManager
 import os
 from gui.views.visualization import VisualizationWidget
 from PySide6.QtWidgets import QFileDialog
+from gui.views.dataset_view import DatasetView
 
 class HomeView(QWidget):
     def __init__(self, status_bar):
@@ -33,33 +34,28 @@ class HomeView(QWidget):
         dialog = CreateDatasetDialog(self)
         if dialog.exec():
             dataset_name, dataset_path, columns = dialog.get_data()
-
-            if not dataset_name or not dataset_path or not columns:
-                QMessageBox.warning(self, "Error", "Missing dataset details or columns.")
-                return
-
             full_path = os.path.join(dataset_path, dataset_name)
             os.makedirs(full_path, exist_ok=True)
 
-            self.dataset_manager = DatasetManager(
-                full_path, create_new=True, columns=columns
-            )
+            self.dataset_manager = DatasetManager(full_path, create_new=True, columns=columns)
             self.dataset_manager.init_metadata()
 
             QMessageBox.information(self, "Success", f"Dataset '{dataset_name}' created successfully!")
             self.status_bar.showMessage(f"Dataset '{dataset_name}' created.", 5000)
+            self.switch_to_dataset_view()  # transition clearly after creation
+
 
     def open_dataset(self):
         path = QFileDialog.getExistingDirectory(self, "Open Dataset")
         if path:
-            template_files = [f for f in os.listdir(path) if f.endswith(".template")]
+            template_files = [f for f in os.listdir(path) if f.endswith('.template')]
             if not template_files:
-                QMessageBox.warning(self, "Invalid Dataset", "No Audionomy dataset (.template) found!")
+                QMessageBox.critical(self, "Invalid Dataset", "No valid .template file found in this folder!")
                 return
 
             self.dataset_manager = DatasetManager(path)
-            QMessageBox.information(self, "Loaded", f"Dataset loaded from {path}")
-            self.status_bar.showMessage(f"Dataset loaded from {path}", 5000)
+            self.status_bar.showMessage(f"Dataset '{os.path.basename(path)}' loaded", 5000)
+            self.switch_to_dataset_view()  # transition to dedicated view
 
     def visualize_dataset(self):
         if not self.dataset_manager:
@@ -80,3 +76,7 @@ class HomeView(QWidget):
         if export_path:
             self.dataset_manager.export_dataset(export_path)
             QMessageBox.information(self, "Export Complete", f"Dataset exported to {export_path}")
+    
+    def switch_to_dataset_view(self):
+        self.dataset_view = DatasetView(self.dataset_manager, self.status_bar)
+        self.window().setCentralWidget(self.dataset_view)

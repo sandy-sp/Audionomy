@@ -11,13 +11,15 @@ import qtawesome as qta
 import os
 import json
 from gui.views.log_viewer import LogViewer
+from scripts.logger import logger
+
 
 class ColorButton(QPushButton):
     """Button that allows users to select a custom color."""
-    
+
     def __init__(self, color=None, parent=None):
         super().__init__(parent)
-        self.color = color or QColor("#3498db")
+        self.color = QColor(color or "#3498db")
         self.setFixedSize(30, 30)
         self.clicked.connect(self.choose_color)
         self.update_button_color()
@@ -45,6 +47,10 @@ class SettingsView(QWidget):
         self.status_bar = status_bar
         self.app_instance = parent
         self.settings = QSettings("Audionomy", "Audionomy")
+
+        # Initialize Accent Color properly
+        self.accent_color = ColorButton(self.settings.value("accent_color", "#3498db"))
+
         self.setup_ui()
         self.load_settings()
 
@@ -80,7 +86,6 @@ class SettingsView(QWidget):
         reset_btn = QPushButton("Reset to Defaults")
         reset_btn.clicked.connect(self.reset_settings)
 
-        # Save Button
         save_btn = QPushButton("✅ Apply Changes")
         save_btn.setObjectName("primary-button")
         save_btn.clicked.connect(self.save_settings)
@@ -94,10 +99,6 @@ class SettingsView(QWidget):
         self.log_button = QPushButton("📜 Open Log Viewer")
         self.log_button.clicked.connect(self.open_log_viewer)
         layout.addWidget(self.log_button)
-
-        button_layout.addStretch()
-        button_layout.addWidget(reset_btn)
-        button_layout.addWidget(save_btn)
 
         layout.addLayout(button_layout)
 
@@ -145,8 +146,11 @@ class SettingsView(QWidget):
         form_layout = QFormLayout()
         self.theme_selector = QComboBox()
         self.theme_selector.addItems(["Light", "Dark", "System"])
-        self.theme_selector.currentIndexChanged.connect(self.apply_theme)  # Apply instantly
+        self.theme_selector.currentIndexChanged.connect(self.apply_theme)
         form_layout.addRow("Theme:", self.theme_selector)
+
+        # Accent Color Picker
+        form_layout.addRow("Accent Color:", self.accent_color)
 
         layout.addLayout(form_layout)
         return tab
@@ -199,17 +203,9 @@ class SettingsView(QWidget):
 
     def load_settings(self):
         """Loads settings from persistent storage."""
-        self.default_dataset_location.setText(
-            self.settings.value("default_dataset_location", os.path.expanduser("~/Audionomy/datasets"))
-        )
-        self.default_audio_format.setCurrentText(self.settings.value("default_audio_format", "WAV"))
-        self.audio_quality.setCurrentText(self.settings.value("audio_quality", "High"))
-        self.normalize_on_import.setChecked(self.settings.value("normalize_on_import", False, type=bool))
-
         self.theme_selector.setCurrentText(self.settings.value("theme", "Light"))
         self.accent_color.color = QColor(self.settings.value("accent_color", "#3498db"))
         self.accent_color.update_button_color()
-        self.font_size.setValue(self.settings.value("font_size", 11, type=int))
 
         self.cache_size.setValue(self.settings.value("cache_size", 1000, type=int))
         self.max_threads.setValue(self.settings.value("max_threads", 4, type=int))
@@ -217,18 +213,8 @@ class SettingsView(QWidget):
 
     def save_settings(self):
         """Saves user settings to persistent storage."""
-        self.settings.setValue("default_dataset_location", self.default_dataset_location.text())
-        self.settings.setValue("default_audio_format", self.default_audio_format.currentText())
-        self.settings.setValue("audio_quality", self.audio_quality.currentText())
-        self.settings.setValue("normalize_on_import", self.normalize_on_import.isChecked())
-
         self.settings.setValue("theme", self.theme_selector.currentText())
         self.settings.setValue("accent_color", self.accent_color.get_color())
-        self.settings.setValue("font_size", self.font_size.value())
-
-        self.settings.setValue("cache_size", self.cache_size.value())
-        self.settings.setValue("max_threads", self.max_threads.value())
-        self.settings.setValue("enable_hardware_accel", self.enable_hardware_accel.isChecked())
 
         self.settings.sync()
         self.status_bar.showMessage("Settings saved successfully", 3000)

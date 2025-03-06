@@ -29,8 +29,8 @@ class VisualizationWidget(QWidget):
 
         # Header
         header = QLabel("Dataset Visualization")
-        header.setObjectName("page-header")
         layout.addWidget(header)
+        self.setLayout(layout)
 
         # Dataset Selector
         selector_layout = QHBoxLayout()

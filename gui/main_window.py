@@ -28,6 +28,9 @@ class ModernMainWindow(QMainWindow):
         self.setStatusBar(self.status_bar)
         self.status_bar.showMessage("Welcome to Audionomy")
 
+        # Ensure dataset manager is initialized **before** passing it to `VisualizationWidget`
+        self.dataset_manager = DatasetManager("datasets")
+
         # Setup UI
         self.setup_ui()
 
@@ -54,11 +57,24 @@ class ModernMainWindow(QMainWindow):
         # Set default page
         self.switch_page(0)
 
-        self.dataset_manager = DatasetManager("datasets")  # Ensure dataset manager is initialized
+    def initialize_pages(self):
+        """Initialize application pages and add them to the stacked widget."""
+        self.dashboard_page = DashboardWidget(self.status_bar)
+        self.dashboard_page.datasetSelected.connect(self.open_dataset)
 
-        # Ensure `dataset_manager` is passed when creating `VisualizationWidget`
+        self.datasets_page = QWidget()  # Placeholder for dataset views
+
+        # ✅ Pass `dataset_manager` when initializing `VisualizationWidget`
         self.visualization_page = VisualizationWidget(dataset_manager=self.dataset_manager)
 
+        self.export_page = ExportView(self.status_bar)
+        self.settings_page = SettingsView(self.status_bar)
+
+        self.content_stack.addWidget(self.dashboard_page)
+        self.content_stack.addWidget(self.datasets_page)
+        self.content_stack.addWidget(self.visualization_page)
+        self.content_stack.addWidget(self.export_page)
+        self.content_stack.addWidget(self.settings_page)
 
     def create_sidebar(self):
         """Creates the sidebar with navigation buttons."""
@@ -101,22 +117,6 @@ class ModernMainWindow(QMainWindow):
 
         sidebar_layout.addStretch()  # Pushes buttons up for better layout
         return sidebar
-
-    def initialize_pages(self):
-        """Initialize application pages and add them to the stacked widget."""
-        self.dashboard_page = DashboardWidget(self.status_bar)
-        self.dashboard_page.datasetSelected.connect(self.open_dataset)
-
-        self.datasets_page = QWidget()  # Placeholder for dataset views
-        self.visualize_page = VisualizationWidget()
-        self.export_page = ExportView(self.status_bar)
-        self.settings_page = SettingsView(self.status_bar)
-
-        self.content_stack.addWidget(self.dashboard_page)
-        self.content_stack.addWidget(self.datasets_page)
-        self.content_stack.addWidget(self.visualize_page)
-        self.content_stack.addWidget(self.export_page)
-        self.content_stack.addWidget(self.settings_page)
 
     def switch_page(self, index):
         """Switches to the selected page."""

@@ -45,7 +45,7 @@ class SettingsView(QWidget):
     def __init__(self, status_bar, parent=None):
         super().__init__(parent)
         self.status_bar = status_bar
-        self.app_instance = parent
+        self.app_instance = app_instance = parent
         self.settings = QSettings("Audionomy", "Audionomy")
 
         # Initialize Accent Color properly
@@ -160,15 +160,16 @@ class SettingsView(QWidget):
         theme = self.theme_selector.currentText()
         logger.info(f"Applying theme: {theme}")
 
-        if theme == "Dark":
-            self.app_instance.setStyle("Fusion")
-        elif theme == "Light":
-            self.app_instance.setStyle("Windows")
+        if self.app_instance:
+            if theme == "Dark":
+                self.app_instance.setStyle("Fusion")
+            elif theme == "Light":
+                self.app_instance.setStyle("Windows")
+            else:
+                self.app_instance.setStyle("System")
+            self.settings.setValue("theme", theme)
         else:
-            self.app_instance.setStyle("System")
-
-        self.settings.setValue("theme", theme)
-        self.settings.sync()
+            logger.error("app_instance is None! Theme change failed.")
 
     def create_performance_settings(self):
         """Creates performance settings UI."""

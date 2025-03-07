@@ -26,6 +26,18 @@ class LogViewer(QWidget):
         """Initializes the log viewer UI."""
         layout = QVBoxLayout(self)
 
+        # Log Display Area
+        self.log_display = QPlainTextEdit()
+        self.log_display.setReadOnly(True)
+        
+        # Fix: Use setFont() instead of setFontFamily()
+        font = self.log_display.font()
+        font.setFamily("Courier")
+        self.log_display.setFont(font)
+
+        layout.addWidget(self.log_display)
+        self.setLayout(layout)
+        
         # Header
         header_layout = QHBoxLayout()
         header_label = QLabel("🔍 Real-Time Logs")

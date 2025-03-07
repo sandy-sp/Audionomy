@@ -18,16 +18,19 @@ class DatasetManager:
         self.audio_dir = os.path.join(dataset_path, "audio")
         self.metadata_path = os.path.join(dataset_path, "metadata.csv")
         self.template_path = os.path.join(dataset_path, "dataset.template")
-        self.versioning_enabled = True  # Enable dataset versioning
 
-        # Create dataset structure if new
         if create_new:
             os.makedirs(self.dataset_path, exist_ok=True)
             os.makedirs(self.audio_dir, exist_ok=True)
+            self.init_metadata(columns)
 
-            # Create a dataset template
-            if columns:
-                self.create_template(columns)
+    def init_metadata(self, columns=None):
+        """Initializes the dataset metadata file if it doesn't exist."""
+        if not os.path.exists(self.metadata_path):
+            columns = columns or ["filename", "duration", "file_format", "sample_rate", "channels", "bit_depth"]
+            df = pd.DataFrame(columns=columns)
+            df.to_csv(self.metadata_path, index=False)
+            logger.info("Metadata file initialized successfully.")
 
     def create_template(self, columns):
         """Creates a dataset template file with the given columns."""
